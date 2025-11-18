@@ -133,6 +133,11 @@ router.get('/dashboard', readLimiter, authenticateToken, async (req, res) => {
         approvedRequests,
         totalTransactions
       },
+      files: {
+        total: totalFiles,
+        available: availableFiles,
+        retrieved: retrievedFiles
+      },
       today: {
         newFiles: todayFiles,
         returns: todayReturns
@@ -200,6 +205,49 @@ router.get('/dashboard', readLimiter, authenticateToken, async (req, res) => {
     console.error('Dashboard stats error:', error);
     res.status(500).json({
       error: 'Failed to retrieve dashboard statistics',
+      message: error.message
+    });
+  }
+});
+
+// Get recent activity log
+router.get('/activity-log', readLimiter, authenticateToken, async (req, res) => {
+  try {
+    const isAdminOrStaff = ['ADMIN', 'STAFF'].includes(req.user.role);
+    const userId = isAdminOrStaff ? null : req.user.userId;
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10;
+
+    const recentActivity = await prisma.transaction.findMany({
+      where: userId ? { userId } : {},
+      include: {
+        file: {
+          select: { filename: true }
+        },
+        user: {
+          select: { name: true, department: true }
+        }
+      },
+      orderBy: { timestamp: 'desc' },
+      take: limit
+    });
+
+    res.json({
+      message: 'Activity log retrieved successfully',
+      activityLog: recentActivity.map(t => ({
+        id: t.id,
+        type: t.type,
+        filename: t.file?.filename,
+        userName: t.user?.name,
+        department: t.user?.department,
+        timestamp: t.timestamp,
+        notes: t.notes
+      }))
+    });
+
+  } catch (error) {
+    console.error('Activity log error:', error);
+    res.status(500).json({
+      error: 'Failed to retrieve activity log',
       message: error.message
     });
   }

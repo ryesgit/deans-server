@@ -65,7 +65,7 @@ router.post('/register', async (req, res) => {
 });
 
 // Login endpoint - strict rate limiting
-router.post('/login', authLimiter, async (req, res) => {
+router.post('/login', /*authLimiter,*/ async (req, res) => {
   try {
     const { userId, email, password } = req.body;
 

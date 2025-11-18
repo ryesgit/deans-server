@@ -4,172 +4,165 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  await prisma.transaction.deleteMany();
-  await prisma.file.deleteMany();
-  await prisma.user.deleteMany();
+  console.log('Starting the seeding process...');
 
-  const hashedPassword = await bcrypt.hash('admin123', 10);
-  const hashedStudentPassword = await bcrypt.hash('password123', 10);
+  // Clear existing data
+  await prisma.transaction.deleteMany({});
+  await prisma.file.deleteMany({});
+  await prisma.user.deleteMany({});
+  console.log('Cleared existing data.');
 
-  const admin = await prisma.user.create({
-    data: {
-      userId: 'admin',
-      password: hashedPassword,
-      name: 'Administrator',
-      department: 'Dean Office',
-      email: 'admin@pup.edu.ph',
-    },
-  });
+  // Create admin user with password
+  const adminPassword = await bcrypt.hash('admin123', 10);
+  const defaultPassword = await bcrypt.hash('password123', 10);
 
   const users = await prisma.user.createMany({
     data: [
       {
-        userId: '2021-00001',
-        password: hashedStudentPassword,
+        userId: 'ADMIN001',
+        name: 'Admin User',
+        department: 'Administration',
+        email: 'admin@pup.edu.ph',
+        password: adminPassword,
+        role: 'ADMIN',
+        status: 'ACTIVE'
+      },
+      {
+        userId: 'PUP001',
+        password: defaultPassword,
         name: 'Juan Dela Cruz',
-        department: 'Computer Science',
-        email: 'juan.delacruz@pup.edu.ph',
-      },
-      {
-        userId: '2021-00002',
-        password: hashedStudentPassword,
-        name: 'Maria Santos',
-        department: 'Information Technology',
-        email: 'maria.santos@pup.edu.ph',
-      },
-      {
-        userId: '2021-00003',
-        password: hashedStudentPassword,
-        name: 'Pedro Reyes',
         department: 'Engineering',
-        email: 'pedro.reyes@pup.edu.ph',
+        email: 'juan.delacruz@pup.edu.ph',
+        role: 'STUDENT',
+        status: 'ACTIVE'
       },
       {
-        userId: '2022-00001',
-        password: hashedStudentPassword,
-        name: 'Ana Garcia',
-        department: 'Computer Science',
-        email: 'ana.garcia@pup.edu.ph',
-      },
-      {
-        userId: '2022-00002',
-        password: hashedStudentPassword,
-        name: 'Jose Morales',
+        userId: 'PUP002',
+        password: defaultPassword,
+        name: 'Maria Santos',
         department: 'Business Administration',
-        email: 'jose.morales@pup.edu.ph',
+        email: 'maria.santos@pup.edu.ph',
+        role: 'STUDENT',
+        status: 'ACTIVE'
       },
+      {
+        userId: 'PUP003',
+        password: defaultPassword,
+        name: 'Jose Rizal',
+        department: 'Computer Science',
+        email: 'jose.rizal@pup.edu.ph',
+        role: 'STUDENT',
+        status: 'ACTIVE'
+      },
+      {
+        userId: 'USER001',
+        password: defaultPassword,
+        name: 'John Doe',
+        department: 'Computer Science',
+        email: 'john.doe@pup.edu.ph',
+        role: 'STUDENT',
+        status: 'ACTIVE'
+      },
+      {
+        userId: 'USER002',
+        password: defaultPassword,
+        name: 'Jane Smith',
+        department: 'Information Technology',
+        email: 'jane.smith@pup.edu.ph',
+        role: 'STAFF',
+        status: 'ACTIVE'
+      },
+      {
+        userId: 'USER003',
+        password: defaultPassword,
+        name: 'Bob Wilson',
+        department: 'Computer Engineering',
+        email: 'bob.wilson@pup.edu.ph',
+        role: 'STUDENT',
+        status: 'ACTIVE'
+      }
     ],
+    skipDuplicates: true
   });
 
   const files = await prisma.file.createMany({
     data: [
       {
-        userId: '2021-00001',
-        filename: 'Transcript_JuanDelaCruz.pdf',
-        filePath: '/storage/transcripts/2021-00001.pdf',
+        userId: 'PUP001',
+        filename: 'Engineering_Thesis_2024.pdf',
         rowPosition: 1,
-        columnPosition: 1,
-        shelfNumber: 1,
-        status: 'AVAILABLE',
+        columnPosition: 3,
+        shelfNumber: 1
       },
       {
-        userId: '2021-00001',
-        filename: 'Diploma_JuanDelaCruz.pdf',
-        filePath: '/storage/diplomas/2021-00001.pdf',
-        rowPosition: 1,
-        columnPosition: 2,
-        shelfNumber: 1,
-        status: 'AVAILABLE',
-      },
-      {
-        userId: '2021-00002',
-        filename: 'Transcript_MariaSantos.pdf',
-        filePath: '/storage/transcripts/2021-00002.pdf',
+        userId: 'PUP001',
+        filename: 'Project_Documentation.pdf',
         rowPosition: 2,
         columnPosition: 1,
-        shelfNumber: 1,
-        status: 'CHECKED_OUT',
+        shelfNumber: 1
       },
       {
-        userId: '2021-00003',
-        filename: 'Transcript_PedroReyes.pdf',
-        filePath: '/storage/transcripts/2021-00003.pdf',
+        userId: 'PUP002',
+        filename: 'Business_Plan_Final.pdf',
+        rowPosition: 1,
+        columnPosition: 5,
+        shelfNumber: 1
+      },
+      {
+        userId: 'PUP002',
+        filename: 'Marketing_Research.pdf',
+        rowPosition: 3,
+        columnPosition: 2,
+        shelfNumber: 1
+      },
+      {
+        userId: 'PUP003',
+        filename: 'Capstone_Project.pdf',
+        rowPosition: 2,
+        columnPosition: 4,
+        shelfNumber: 1
+      },
+      {
+        userId: 'PUP003',
+        filename: 'Algorithm_Analysis.pdf',
+        rowPosition: 1,
+        columnPosition: 1,
+        shelfNumber: 1
+      },
+      {
+        userId: 'USER001',
+        filename: 'John_Thesis_2024.pdf',
+        rowPosition: 2,
+        columnPosition: 2,
+        shelfNumber: 1
+      },
+      {
+        userId: 'USER003',
+        filename: 'Bob_Project_Report.pdf',
+        rowPosition: 1,
+        columnPosition: 4,
+        shelfNumber: 1
+      },
+      {
+        userId: 'USER003',
+        filename: 'Bob_Research_Paper.pdf',
         rowPosition: 3,
         columnPosition: 1,
-        shelfNumber: 1,
-        status: 'AVAILABLE',
+        shelfNumber: 1
       },
       {
-        userId: '2022-00001',
-        filename: 'Transcript_AnaGarcia.pdf',
-        filePath: '/storage/transcripts/2022-00001.pdf',
-        rowPosition: 1,
-        columnPosition: 3,
-        shelfNumber: 2,
-        status: 'AVAILABLE',
-      },
-      {
-        userId: '2022-00002',
-        filename: 'Transcript_JoseMorales.pdf',
-        filePath: '/storage/transcripts/2022-00002.pdf',
+        userId: 'ADMIN001',
+        filename: 'Administrative_Records.pdf',
         rowPosition: 2,
-        columnPosition: 3,
-        shelfNumber: 2,
-        status: 'MAINTENANCE',
-      },
+        columnPosition: 5,
+        shelfNumber: 1
+      }
     ],
+    skipDuplicates: true
   });
 
-  const fileRecords = await prisma.file.findMany();
-
-  const transactions = await prisma.transaction.createMany({
-    data: [
-      {
-        fileId: fileRecords[2].id,
-        userId: '2021-00002',
-        type: 'CHECKOUT',
-        rowPosition: 2,
-        columnPosition: 1,
-        notes: 'Checked out for employment verification',
-        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
-      {
-        fileId: fileRecords[5].id,
-        userId: '2022-00002',
-        type: 'MAINTENANCE',
-        rowPosition: 2,
-        columnPosition: 3,
-        notes: 'Document requires restoration',
-      },
-      {
-        fileId: fileRecords[0].id,
-        userId: '2021-00001',
-        type: 'CHECKOUT',
-        rowPosition: 1,
-        columnPosition: 1,
-        notes: 'Graduate school application',
-        dueDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-        returnedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-        timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-      },
-      {
-        fileId: fileRecords[0].id,
-        userId: '2021-00001',
-        type: 'RETURN',
-        rowPosition: 1,
-        columnPosition: 1,
-        notes: 'Returned in good condition',
-        returnedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-        timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-      },
-    ],
-  });
-
-  console.log('Database seeded successfully!');
-  console.log(`- 1 Admin user (userId: admin, password: admin123)`);
-  console.log(`- 5 Regular users (all passwords: password123)`);
-  console.log(`- 6 Files`);
-  console.log(`- 4 Transactions`);
+  console.log(`👥 Created ${users.count} users`);
+  console.log(`📁 Created ${files.count} files`);
 }
 
 main()

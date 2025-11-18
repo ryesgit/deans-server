@@ -10,7 +10,8 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage --runInBand",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "db:seed": "prisma db seed"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
