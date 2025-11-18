@@ -6,9 +6,9 @@ const router = express.Router();
 const esp32Controller = new ESP32Controller();
 
 router.post('/unlock', async (req, res) => {
+  const { row, column, userId } = req.body;
+  
   try {
-    const { row, column, userId } = req.body;
-
     if (!row || !column) {
       return res.status(400).json({
         error: 'Missing required parameters',
@@ -35,7 +35,7 @@ router.post('/unlock', async (req, res) => {
     console.error('Manual unlock error:', error);
 
     if (userId) {
-      await logAccess(userId, null, 'manual_unlock_failed', req.body.row, req.body.column, false);
+      await logAccess(userId, null, 'manual_unlock_failed', row, column, false);
     }
 
     res.status(500).json({

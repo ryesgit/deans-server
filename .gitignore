@@ -3,3 +3,8 @@ node_modules
 .env
 
 /generated/prisma
+
+# Test coverage
+coverage
+*.lcov
+.nyc_output
