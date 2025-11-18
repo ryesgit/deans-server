@@ -49,8 +49,8 @@ app.use('/api/files', fileRoutes);
 app.use('/api/door', doorRoutes);
 
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'healthy', 
+  res.json({
+    status: 'healthy',
     timestamp: new Date().toISOString(),
     esp32Connected: esp32Controller.isConnected()
   });
@@ -58,7 +58,7 @@ app.get('/api/health', (req, res) => {
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ 
+  res.status(500).json({
     error: 'Something went wrong!',
     message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
   });

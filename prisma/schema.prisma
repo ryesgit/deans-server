@@ -197,4 +197,3 @@ model Settings {
 
   @@map("settings")
 }
-

@@ -28,6 +28,7 @@ const seedDatabase = async () => {
 
     // Create admin user with password
     const adminPassword = await bcrypt.hash('admin123', 10);
+    const defaultPassword = await bcrypt.hash('password123', 10);
 
     const users = await prisma.user.createMany({
       data: [
@@ -42,6 +43,7 @@ const seedDatabase = async () => {
         },
         {
           userId: 'PUP001',
+          password: defaultPassword,
           name: 'Juan Dela Cruz',
           department: 'Engineering',
           email: 'juan.delacruz@pup.edu.ph',
@@ -50,6 +52,7 @@ const seedDatabase = async () => {
         },
         {
           userId: 'PUP002',
+          password: defaultPassword,
           name: 'Maria Santos',
           department: 'Business Administration',
           email: 'maria.santos@pup.edu.ph',
@@ -58,6 +61,7 @@ const seedDatabase = async () => {
         },
         {
           userId: 'PUP003',
+          password: defaultPassword,
           name: 'Jose Rizal',
           department: 'Computer Science',
           email: 'jose.rizal@pup.edu.ph',
@@ -66,6 +70,7 @@ const seedDatabase = async () => {
         },
         {
           userId: 'USER001',
+          password: defaultPassword,
           name: 'John Doe',
           department: 'Computer Science',
           email: 'john.doe@pup.edu.ph',
@@ -74,6 +79,7 @@ const seedDatabase = async () => {
         },
         {
           userId: 'USER002',
+          password: defaultPassword,
           name: 'Jane Smith',
           department: 'Information Technology',
           email: 'jane.smith@pup.edu.ph',
@@ -82,6 +88,7 @@ const seedDatabase = async () => {
         },
         {
           userId: 'USER003',
+          password: defaultPassword,
           name: 'Bob Wilson',
           department: 'Computer Engineering',
           email: 'bob.wilson@pup.edu.ph',
