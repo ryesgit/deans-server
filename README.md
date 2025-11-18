@@ -1029,14 +1029,21 @@ See [TESTING.md](TESTING.md) for detailed testing documentation.
 
 ### Security Features
 
-1. **JWT Authentication**: Secure token-based authentication
-2. **Password Hashing**: Bcrypt with salt rounds
-3. **Role-Based Access Control**: Admin, Staff, Student, Faculty roles
-4. **Helmet.js**: Security headers protection
-5. **Input Validation**: All endpoints validate input
-6. **CORS**: Configurable cross-origin resource sharing
-7. **Error Handling**: Comprehensive error handling without exposing internals
-8. **SQL Injection Protection**: Prisma ORM with parameterized queries
+1. **JWT Authentication**: Secure token-based authentication with configurable expiration
+2. **Password Hashing**: Bcrypt with 10 salt rounds for secure password storage
+3. **Role-Based Access Control**: Admin, Staff, Student, Faculty roles with granular permissions
+4. **Rate Limiting**: Comprehensive protection against abuse and brute force attacks:
+   - **Auth Limiter**: 5 failed attempts per 15 minutes (login, password change)
+   - **Upload Limiter**: 10 file uploads per hour
+   - **User Operations Limiter**: 20 operations per 15 minutes (create, update, delete users)
+   - **Read Limiter**: 200 read requests per 15 minutes
+   - **API Limiter**: 100 general API requests per 15 minutes
+5. **Helmet.js**: Security headers protection (XSS, clickjacking, etc.)
+6. **Input Validation**: All endpoints validate and sanitize input
+7. **CORS**: Configurable cross-origin resource sharing
+8. **Error Handling**: Comprehensive error handling without exposing internals
+9. **SQL Injection Protection**: Prisma ORM with parameterized queries
+10. **File Upload Security**: Type validation, size limits, secure storage
 
 ### Best Practices
 
