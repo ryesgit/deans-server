@@ -9,16 +9,44 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  ADMIN
+  STAFF
+  STUDENT
+  FACULTY
+
+  @@map("user_role")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+
+  @@map("user_status")
+}
+
 model User {
-  id           Int           @id @default(autoincrement())
-  userId       String        @unique @map("user_id")
-  name         String
-  department   String?
-  email        String?
-  createdAt    DateTime      @default(now()) @map("created_at")
+  id            Int           @id @default(autoincrement())
+  userId        String        @unique @map("user_id")
+  name          String
+  email         String?       @unique
+  password      String?
+  role          UserRole      @default(STUDENT)
+  department    String?
+  contactNumber String?       @map("contact_number")
+  gender        String?
+  dateOfBirth   DateTime?     @map("date_of_birth")
+  status        UserStatus    @default(ACTIVE)
+  avatar        String?
+  lastLogin     DateTime?     @map("last_login")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime?     @updatedAt @map("updated_at")
   
-  files        File[]
-  transactions Transaction[]
+  files         File[]
+  transactions  Transaction[]
+  requests      Request[]
+  notifications Notification[]
 
   @@map("users")
 }
@@ -43,19 +71,37 @@ enum TransactionType {
   @@map("transaction_type")
 }
 
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  color       String?
+  icon        String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
+  
+  files       File[]
+
+  @@map("categories")
+}
+
 model File {
   id             Int        @id @default(autoincrement())
   userId         String     @map("user_id")
   filename       String
   filePath       String?    @map("file_path")
-  rowPosition    Int        @map("row_position")
-  columnPosition Int        @map("column_position")
-  shelfNumber    Int        @default(1) @map("shelf_number")
+  fileUrl        String?    @map("file_url")
+  fileType       String?    @map("file_type")
+  categoryId     Int?       @map("category_id")
+  rowPosition    Int?       @map("row_position")
+  columnPosition Int?       @map("column_position")
+  shelfNumber    Int?       @default(1) @map("shelf_number")
   status         FileStatus @default(AVAILABLE)
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime?  @updatedAt @map("updated_at")
   
   user         User          @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  category     Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   transactions Transaction[]
 
   @@map("files")
@@ -78,3 +124,77 @@ model Transaction {
 
   @@map("transactions")
 }
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  CANCELLED
+
+  @@map("request_status")
+}
+
+enum RequestType {
+  FILE_ACCESS
+  FILE_BORROW
+  FILE_RETURN
+  NEW_FILE
+  OTHER
+
+  @@map("request_type")
+}
+
+model Request {
+  id          Int           @id @default(autoincrement())
+  userId      String        @map("user_id")
+  type        RequestType   @default(FILE_ACCESS)
+  status      RequestStatus @default(PENDING)
+  title       String
+  description String?
+  fileId      Int?          @map("file_id")
+  priority    String?       @default("normal")
+  approvedBy  String?       @map("approved_by")
+  approvedAt  DateTime?     @map("approved_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime?     @updatedAt @map("updated_at")
+  
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("requests")
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  SUCCESS
+  ERROR
+  REQUEST
+
+  @@map("notification_type")
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    String           @map("user_id")
+  type      NotificationType @default(INFO)
+  title     String
+  message   String
+  isRead    Boolean          @default(false) @map("is_read")
+  link      String?
+  createdAt DateTime         @default(now()) @map("created_at")
+  
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Settings {
+  id        Int       @id @default(autoincrement())
+  key       String    @unique
+  value     String
+  category  String?
+  updatedAt DateTime? @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
+

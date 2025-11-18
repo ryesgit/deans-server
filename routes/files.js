@@ -1,8 +1,164 @@
 import express from 'express';
-import { getUserFiles, getAllFiles, addFile, searchFiles, returnFile } from '../prismaClient.js';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import { getUserFiles, getAllFiles, addFile, searchFiles, returnFile, prisma } from '../prismaClient.js';
 import { ESP32Controller } from '../esp32Controller.js';
+import { authenticateToken, optionalAuth } from '../middleware/auth.js';
+import { uploadLimiter, readLimiter } from '../middleware/rateLimiter.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const router = express.Router();
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = process.env.UPLOAD_DIR || './uploads';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = ['.pdf', '.doc', '.docx', '.txt', '.jpg', '.jpeg', '.png'];
+  const ext = path.extname(file.originalname).toLowerCase();
+  
+  if (allowedTypes.includes(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Invalid file type. Only PDF, DOC, DOCX, TXT, and images are allowed.'));
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024 // 10MB default
+  },
+  fileFilter: fileFilter
+});
+
+// Upload file endpoint
+router.post('/upload', uploadLimiter, authenticateToken, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        error: 'No file uploaded',
+        message: 'Please provide a file to upload'
+      });
+    }
+
+    const {
+      userId,
+      filename,
+      rowPosition,
+      columnPosition,
+      shelfNumber,
+      categoryId,
+      fileType
+    } = req.body;
+
+    // Use authenticated user's ID if not admin
+    const targetUserId = req.user.role === 'ADMIN' && userId ? userId : req.user.userId;
+
+    const fileUrl = `/api/files/download/${req.file.filename}`;
+    const finalFilename = filename || req.file.originalname;
+    const finalFileType = fileType || path.extname(req.file.originalname).substring(1);
+
+    const result = await addFile(
+      targetUserId,
+      finalFilename,
+      rowPosition,
+      columnPosition,
+      shelfNumber,
+      categoryId,
+      finalFileType,
+      fileUrl
+    );
+
+    res.status(201).json({
+      message: 'File uploaded successfully',
+      fileId: result.fileId,
+      file: {
+        userId: targetUserId,
+        filename: finalFilename,
+        fileUrl,
+        fileType: finalFileType,
+        size: req.file.size,
+        uploadedAt: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('File upload error:', error);
+    
+    // Clean up uploaded file if database insert failed
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    res.status(500).json({
+      error: 'Failed to upload file',
+      message: error.message
+    });
+  }
+});
+
+// Download file endpoint
+router.get('/download/:filename', readLimiter, async (req, res) => {
+  try {
+    const { filename } = req.params;
+    const uploadDir = process.env.UPLOAD_DIR || './uploads';
+    const filePath = path.join(uploadDir, filename);
+
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({
+        error: 'File not found',
+        message: 'The requested file does not exist'
+      });
+    }
+
+    // Get file info from database to check permissions
+    const file = await prisma.file.findFirst({
+      where: {
+        fileUrl: {
+          contains: filename
+        }
+      }
+    });
+
+    // Send file
+    res.download(filePath, file ? file.filename : filename, (err) => {
+      if (err) {
+        console.error('File download error:', err);
+        if (!res.headersSent) {
+          res.status(500).json({
+            error: 'Failed to download file',
+            message: err.message
+          });
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('File download error:', error);
+    res.status(500).json({
+      error: 'Failed to download file',
+      message: error.message
+    });
+  }
+});
 
 router.get('/user/:userId', async (req, res) => {
   try {
@@ -53,16 +209,16 @@ router.get('/all', async (req, res) => {
 
 router.post('/add', async (req, res) => {
   try {
-    const { userId, filename, rowPosition, columnPosition, shelfNumber = 1 } = req.body;
+    const { userId, filename, rowPosition, columnPosition, shelfNumber = 1, categoryId, fileType, fileUrl } = req.body;
 
-    if (!userId || !filename || !rowPosition || !columnPosition) {
+    if (!userId || !filename) {
       return res.status(400).json({
         error: 'Missing required fields',
-        required: ['userId', 'filename', 'rowPosition', 'columnPosition']
+        required: ['userId', 'filename']
       });
     }
 
-    const result = await addFile(userId, filename, rowPosition, columnPosition, shelfNumber);
+    const result = await addFile(userId, filename, rowPosition, columnPosition, shelfNumber, categoryId, fileType, fileUrl);
 
     res.status(201).json({
       message: 'File added successfully',
@@ -72,7 +228,10 @@ router.post('/add', async (req, res) => {
         filename,
         rowPosition,
         columnPosition,
-        shelfNumber
+        shelfNumber,
+        categoryId,
+        fileType,
+        fileUrl
       }
     });
   } catch (error) {
