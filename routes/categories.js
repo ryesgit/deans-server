@@ -1,11 +1,12 @@
 import express from 'express';
 import { prisma } from '../prismaClient.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
+import { readLimiter, apiLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
 // Get all categories
-router.get('/', async (req, res) => {
+router.get('/', readLimiter, async (req, res) => {
   try {
     const categories = await prisma.category.findMany({
       include: {
@@ -41,7 +42,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get category by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', readLimiter, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -84,7 +85,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create category (Admin/Staff only)
-router.post('/', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+router.post('/', apiLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
   try {
     const { name, description, color, icon } = req.body;
 
@@ -131,7 +132,7 @@ router.post('/', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req
 });
 
 // Update category (Admin/Staff only)
-router.put('/:id', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+router.put('/:id', apiLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, color, icon } = req.body;
@@ -170,7 +171,7 @@ router.put('/:id', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (r
 });
 
 // Delete category (Admin only)
-router.delete('/:id', authenticateToken, authorizeRoles('ADMIN'), async (req, res) => {
+router.delete('/:id', apiLimiter, authenticateToken, authorizeRoles('ADMIN'), async (req, res) => {
   try {
     const { id } = req.params;
 

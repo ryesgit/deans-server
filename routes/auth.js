@@ -3,13 +3,14 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { authLimiter, apiLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRATION = process.env.JWT_EXPIRATION || '7d';
 
-// Login endpoint
-router.post('/login', async (req, res) => {
+// Login endpoint - strict rate limiting
+router.post('/login', authLimiter, async (req, res) => {
   try {
     const { userId, email, password } = req.body;
 
@@ -107,7 +108,7 @@ router.post('/login', async (req, res) => {
 });
 
 // Get current user profile
-router.get('/me', authenticateToken, async (req, res) => {
+router.get('/me', apiLimiter, authenticateToken, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { userId: req.user.userId },
@@ -151,7 +152,7 @@ router.get('/me', authenticateToken, async (req, res) => {
 });
 
 // Logout endpoint (client-side token removal, but we can log it)
-router.post('/logout', authenticateToken, async (req, res) => {
+router.post('/logout', apiLimiter, authenticateToken, async (req, res) => {
   try {
     // In a stateless JWT system, logout is handled client-side by removing the token
     // We can optionally log this activity
@@ -172,7 +173,7 @@ router.post('/logout', authenticateToken, async (req, res) => {
 });
 
 // Update profile
-router.put('/profile', authenticateToken, async (req, res) => {
+router.put('/profile', apiLimiter, authenticateToken, async (req, res) => {
   try {
     const { name, email, contactNumber, gender, dateOfBirth, avatar } = req.body;
 
@@ -217,7 +218,7 @@ router.put('/profile', authenticateToken, async (req, res) => {
 });
 
 // Change password
-router.put('/change-password', authenticateToken, async (req, res) => {
+router.put('/change-password', authLimiter, authenticateToken, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 

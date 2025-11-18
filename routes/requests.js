@@ -1,11 +1,12 @@
 import express from 'express';
 import { prisma } from '../prismaClient.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
+import { readLimiter, apiLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
 // Get all requests
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', readLimiter, authenticateToken, async (req, res) => {
   try {
     const { status, type, userId, page = 1, limit = 50 } = req.query;
     
@@ -67,7 +68,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Get request by ID
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', readLimiter, authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -118,7 +119,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // Create new request
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', apiLimiter, authenticateToken, async (req, res) => {
   try {
     const {
       type = 'FILE_ACCESS',
@@ -192,7 +193,7 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // Update request (owner can update if pending, admin/staff can always update)
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', apiLimiter, authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, type, priority } = req.body;
@@ -261,7 +262,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 });
 
 // Approve request (Admin/Staff only)
-router.put('/:id/approve', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+router.put('/:id/approve', apiLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
   try {
     const { id } = req.params;
     const { notes } = req.body;
@@ -336,7 +337,7 @@ router.put('/:id/approve', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), 
 });
 
 // Decline request (Admin/Staff only)
-router.put('/:id/decline', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+router.put('/:id/decline', apiLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
@@ -411,7 +412,7 @@ router.put('/:id/decline', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), 
 });
 
 // Delete request
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', apiLimiter, authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 

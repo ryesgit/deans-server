@@ -1,11 +1,12 @@
 import express from 'express';
 import { prisma } from '../prismaClient.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { readLimiter, apiLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
 // Get user notifications
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', readLimiter, authenticateToken, async (req, res) => {
   try {
     const { unreadOnly, page = 1, limit = 50 } = req.query;
 
@@ -55,7 +56,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Get notification by ID
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', readLimiter, authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -93,7 +94,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // Mark notification as read
-router.put('/:id/read', authenticateToken, async (req, res) => {
+router.put('/:id/read', apiLimiter, authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -135,7 +136,7 @@ router.put('/:id/read', authenticateToken, async (req, res) => {
 });
 
 // Mark all notifications as read
-router.put('/read-all', authenticateToken, async (req, res) => {
+router.put('/read-all', apiLimiter, authenticateToken, async (req, res) => {
   try {
     const result = await prisma.notification.updateMany({
       where: {
@@ -160,7 +161,7 @@ router.put('/read-all', authenticateToken, async (req, res) => {
 });
 
 // Delete notification
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', apiLimiter, authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -201,7 +202,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 });
 
 // Delete all read notifications
-router.delete('/clear-read', authenticateToken, async (req, res) => {
+router.delete('/clear-read', apiLimiter, authenticateToken, async (req, res) => {
   try {
     const result = await prisma.notification.deleteMany({
       where: {

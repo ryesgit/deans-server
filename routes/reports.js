@@ -1,11 +1,12 @@
 import express from 'express';
 import { prisma } from '../prismaClient.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
+import { readLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
 // Generate comprehensive report
-router.get('/generate', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+router.get('/generate', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
   try {
     const {
       reportType = 'all',
@@ -265,7 +266,7 @@ router.get('/generate', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), asy
 });
 
 // Get file activity report
-router.get('/file-activity', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+router.get('/file-activity', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
   try {
     const { days = 30 } = req.query;
 
@@ -323,7 +324,7 @@ router.get('/file-activity', authenticateToken, authorizeRoles('ADMIN', 'STAFF')
 });
 
 // Get user activity report
-router.get('/user-activity/:userId', authenticateToken, async (req, res) => {
+router.get('/user-activity/:userId', readLimiter, authenticateToken, async (req, res) => {
   try {
     const { userId } = req.params;
     const { days = 30 } = req.query;

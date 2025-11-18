@@ -7,6 +7,7 @@ import { dirname } from 'path';
 import { getUserFiles, getAllFiles, addFile, searchFiles, returnFile, prisma } from '../prismaClient.js';
 import { ESP32Controller } from '../esp32Controller.js';
 import { authenticateToken, optionalAuth } from '../middleware/auth.js';
+import { uploadLimiter, readLimiter } from '../middleware/rateLimiter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -48,7 +49,7 @@ const upload = multer({
 });
 
 // Upload file endpoint
-router.post('/upload', authenticateToken, upload.single('file'), async (req, res) => {
+router.post('/upload', uploadLimiter, authenticateToken, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -114,7 +115,7 @@ router.post('/upload', authenticateToken, upload.single('file'), async (req, res
 });
 
 // Download file endpoint
-router.get('/download/:filename', async (req, res) => {
+router.get('/download/:filename', readLimiter, async (req, res) => {
   try {
     const { filename } = req.params;
     const uploadDir = process.env.UPLOAD_DIR || './uploads';

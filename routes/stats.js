@@ -1,11 +1,12 @@
 import express from 'express';
 import { prisma } from '../prismaClient.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
+import { readLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
 // Get dashboard statistics
-router.get('/dashboard', authenticateToken, async (req, res) => {
+router.get('/dashboard', readLimiter, authenticateToken, async (req, res) => {
   try {
     const isAdminOrStaff = ['ADMIN', 'STAFF'].includes(req.user.role);
     const userId = isAdminOrStaff ? null : req.user.userId;
@@ -205,7 +206,7 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
 });
 
 // Get file statistics
-router.get('/files', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+router.get('/files', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
   try {
     const filesByStatus = await prisma.file.groupBy({
       by: ['status'],
@@ -245,7 +246,7 @@ router.get('/files', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async 
 });
 
 // Get user statistics
-router.get('/users', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+router.get('/users', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
   try {
     const usersByRole = await prisma.user.groupBy({
       by: ['role'],

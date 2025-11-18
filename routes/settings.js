@@ -1,11 +1,12 @@
 import express from 'express';
 import { prisma } from '../prismaClient.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
+import { readLimiter, apiLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
 // Get all settings
-router.get('/', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+router.get('/', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
   try {
     const { category } = req.query;
 
@@ -43,7 +44,7 @@ router.get('/', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req,
 });
 
 // Get setting by key
-router.get('/:key', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+router.get('/:key', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
   try {
     const { key } = req.params;
 
@@ -73,7 +74,7 @@ router.get('/:key', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (
 });
 
 // Create or update setting (upsert)
-router.put('/', authenticateToken, authorizeRoles('ADMIN'), async (req, res) => {
+router.put('/', apiLimiter, authenticateToken, authorizeRoles('ADMIN'), async (req, res) => {
   try {
     const { key, value, category } = req.body;
 
@@ -112,7 +113,7 @@ router.put('/', authenticateToken, authorizeRoles('ADMIN'), async (req, res) => 
 });
 
 // Bulk update settings
-router.put('/bulk', authenticateToken, authorizeRoles('ADMIN'), async (req, res) => {
+router.put('/bulk', apiLimiter, authenticateToken, authorizeRoles('ADMIN'), async (req, res) => {
   try {
     const { settings } = req.body;
 
@@ -149,7 +150,7 @@ router.put('/bulk', authenticateToken, authorizeRoles('ADMIN'), async (req, res)
 });
 
 // Delete setting
-router.delete('/:key', authenticateToken, authorizeRoles('ADMIN'), async (req, res) => {
+router.delete('/:key', apiLimiter, authenticateToken, authorizeRoles('ADMIN'), async (req, res) => {
   try {
     const { key } = req.params;
 

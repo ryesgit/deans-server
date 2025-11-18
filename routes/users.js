@@ -2,11 +2,12 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../prismaClient.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
+import { readLimiter, userOperationsLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
 // Get all users (Admin/Staff only)
-router.get('/', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+router.get('/', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
   try {
     const { role, status, department, search, page = 1, limit = 50 } = req.query;
 
@@ -77,7 +78,7 @@ router.get('/', authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req,
 });
 
 // Get user by ID
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', readLimiter, authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -141,7 +142,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // Create new user (Admin only)
-router.post('/', authenticateToken, authorizeRoles('ADMIN'), async (req, res) => {
+router.post('/', userOperationsLimiter, authenticateToken, authorizeRoles('ADMIN'), async (req, res) => {
   try {
     const {
       userId,
@@ -236,7 +237,7 @@ router.post('/', authenticateToken, authorizeRoles('ADMIN'), async (req, res) =>
 });
 
 // Update user (Admin or own profile)
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', userOperationsLimiter, authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const isOwnProfile = req.user.userId === id;
@@ -312,7 +313,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 });
 
 // Delete user (Admin only)
-router.delete('/:id', authenticateToken, authorizeRoles('ADMIN'), async (req, res) => {
+router.delete('/:id', userOperationsLimiter, authenticateToken, authorizeRoles('ADMIN'), async (req, res) => {
   try {
     const { id } = req.params;
 
