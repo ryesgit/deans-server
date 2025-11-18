@@ -149,3 +149,27 @@ See [TESTING.md](TESTING.md) for detailed testing documentation.
 - 92% function coverage
 
 All endpoints, database operations, and ESP32 integration are fully tested with mocked dependencies.
+
+## Frontend Integration
+
+This backend is designed to work with the [PUP Dean's Filing System Frontend](https://github.com/ryesgit/deans-filing-system).
+
+**Integration Status:** The frontend and backend are currently **not connected**. See the integration documentation for details:
+
+- **[INTEGRATION_SUMMARY.md](INTEGRATION_SUMMARY.md)** - Quick reference guide with key findings and next steps
+- **[INTEGRATION_REPORT.md](INTEGRATION_REPORT.md)** - Comprehensive 50+ page technical analysis
+
+### Key Integration Requirements
+
+To connect the frontend to this backend, you'll need to implement:
+
+1. **Authentication System** - JWT-based login and authorization
+2. **User Profile Management** - Extended user model with roles and contact info
+3. **Request/Approval System** - File request workflow and tracking
+4. **File Categories & Folders** - Organize files beyond physical location
+5. **Dashboard Statistics** - Aggregated data for admin dashboard
+6. **File Upload/Download** - Store and serve PDF files
+
+**Estimated Effort:** 200-280 hours (5-7 weeks)
+
+See the integration documents for the complete roadmap and implementation guide.
