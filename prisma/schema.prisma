@@ -1,0 +1,80 @@
+// PUP Dean's Filing System Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int           @id @default(autoincrement())
+  userId       String        @unique @map("user_id")
+  name         String
+  department   String?
+  email        String?
+  createdAt    DateTime      @default(now()) @map("created_at")
+  
+  files        File[]
+  transactions Transaction[]
+
+  @@map("users")
+}
+
+enum FileStatus {
+  AVAILABLE
+  CHECKED_OUT
+  RETRIEVED
+  MAINTENANCE
+  MISSING
+
+  @@map("file_status")
+}
+
+enum TransactionType {
+  CHECKOUT
+  RETURN
+  RETRIEVAL
+  MAINTENANCE
+  LOST_REPORT
+
+  @@map("transaction_type")
+}
+
+model File {
+  id             Int        @id @default(autoincrement())
+  userId         String     @map("user_id")
+  filename       String
+  filePath       String?    @map("file_path")
+  rowPosition    Int        @map("row_position")
+  columnPosition Int        @map("column_position")
+  shelfNumber    Int        @default(1) @map("shelf_number")
+  status         FileStatus @default(AVAILABLE)
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime?  @updatedAt @map("updated_at")
+  
+  user         User          @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@map("files")
+}
+
+model Transaction {
+  id             Int             @id @default(autoincrement())
+  fileId         Int             @map("file_id")
+  userId         String          @map("user_id")
+  type           TransactionType
+  rowPosition    Int?            @map("row_position")
+  columnPosition Int?            @map("column_position")
+  notes          String?
+  dueDate        DateTime?       @map("due_date")
+  returnedAt     DateTime?       @map("returned_at")
+  timestamp      DateTime        @default(now())
+  
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("transactions")
+}
