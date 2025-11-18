@@ -46,11 +46,11 @@ export const resetPrismaMocks = () => {
   });
 };
 
-// Sample test data
 export const mockUsers = [
   {
     id: 1,
     userId: 'PUP001',
+    password: '$2a$10$YourHashedPasswordHere',
     name: 'Juan Dela Cruz',
     department: 'Engineering',
     email: 'juan.delacruz@pup.edu.ph',
@@ -59,6 +59,7 @@ export const mockUsers = [
   {
     id: 2,
     userId: 'PUP002',
+    password: '$2a$10$YourHashedPasswordHere',
     name: 'Maria Santos',
     department: 'Business Administration',
     email: 'maria.santos@pup.edu.ph',
@@ -67,6 +68,7 @@ export const mockUsers = [
   {
     id: 3,
     userId: 'USER001',
+    password: '$2a$10$YourHashedPasswordHere',
     name: 'John Doe',
     department: 'Computer Science',
     email: 'john.doe@pup.edu.ph',
@@ -75,6 +77,7 @@ export const mockUsers = [
   {
     id: 4,
     userId: 'USER002',
+    password: '$2a$10$YourHashedPasswordHere',
     name: 'Jane Smith',
     department: 'Information Technology',
     email: 'jane.smith@pup.edu.ph',

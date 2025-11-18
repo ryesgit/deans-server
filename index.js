@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { initializeDatabase } from './prismaClient.js';
 import { ESP32Controller } from './esp32Controller.js';
+import authRoutes from './routes/auth.js';
 import qrRoutes from './routes/qr.js';
 import fileRoutes from './routes/files.js';
 import doorRoutes from './routes/door.js';
@@ -25,6 +26,7 @@ await initializeDatabase();
 
 const esp32Controller = new ESP32Controller();
 
+app.use('/api/auth', authRoutes);
 app.use('/api/qr', qrRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/door', doorRoutes);
@@ -47,6 +49,7 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 PUP Filing System Backend running on port ${PORT}`);
+  console.log(`🔐 Authentication: http://localhost:${PORT}/api/auth`);
   console.log(`📱 QR Code endpoint: http://localhost:${PORT}/api/qr/scan`);
   console.log(`🗂️  File management: http://localhost:${PORT}/api/files`);
   console.log(`🚪 Door control: http://localhost:${PORT}/api/door`);

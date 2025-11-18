@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient({
   log: ['query', 'info', 'warn', 'error'],
@@ -25,46 +26,55 @@ const seedDatabase = async () => {
       return;
     }
 
+    const defaultPassword = await bcrypt.hash('password123', 10);
+
     const users = await prisma.user.createMany({
       data: [
         {
           userId: 'PUP001',
+          password: defaultPassword,
           name: 'Juan Dela Cruz',
           department: 'Engineering',
           email: 'juan.delacruz@pup.edu.ph'
         },
         {
           userId: 'PUP002',
+          password: defaultPassword,
           name: 'Maria Santos',
           department: 'Business Administration',
           email: 'maria.santos@pup.edu.ph'
         },
         {
           userId: 'PUP003',
+          password: defaultPassword,
           name: 'Jose Rizal',
           department: 'Computer Science',
           email: 'jose.rizal@pup.edu.ph'
         },
         {
           userId: 'USER001',
+          password: defaultPassword,
           name: 'John Doe',
           department: 'Computer Science',
           email: 'john.doe@pup.edu.ph'
         },
         {
           userId: 'USER002',
+          password: defaultPassword,
           name: 'Jane Smith',
           department: 'Information Technology',
           email: 'jane.smith@pup.edu.ph'
         },
         {
           userId: 'USER003',
+          password: defaultPassword,
           name: 'Bob Wilson',
           department: 'Computer Engineering',
           email: 'bob.wilson@pup.edu.ph'
         },
         {
           userId: 'ADMIN001',
+          password: defaultPassword,
           name: 'Admin User',
           department: 'Administration',
           email: 'admin@pup.edu.ph'

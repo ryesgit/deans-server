@@ -12,11 +12,12 @@ datasource db {
 model User {
   id           Int           @id @default(autoincrement())
   userId       String        @unique @map("user_id")
+  password     String
   name         String
   department   String?
   email        String?
   createdAt    DateTime      @default(now()) @map("created_at")
-  
+
   files        File[]
   transactions Transaction[]
 
