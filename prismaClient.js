@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient({
   log: ['query', 'info', 'warn', 'error'],
@@ -25,49 +26,67 @@ const seedDatabase = async () => {
       return;
     }
 
+    // Create admin user with password
+    const adminPassword = await bcrypt.hash('admin123', 10);
+
     const users = await prisma.user.createMany({
       data: [
+        {
+          userId: 'ADMIN001',
+          name: 'Admin User',
+          department: 'Administration',
+          email: 'admin@pup.edu.ph',
+          password: adminPassword,
+          role: 'ADMIN',
+          status: 'ACTIVE'
+        },
         {
           userId: 'PUP001',
           name: 'Juan Dela Cruz',
           department: 'Engineering',
-          email: 'juan.delacruz@pup.edu.ph'
+          email: 'juan.delacruz@pup.edu.ph',
+          role: 'STUDENT',
+          status: 'ACTIVE'
         },
         {
           userId: 'PUP002',
           name: 'Maria Santos',
           department: 'Business Administration',
-          email: 'maria.santos@pup.edu.ph'
+          email: 'maria.santos@pup.edu.ph',
+          role: 'STUDENT',
+          status: 'ACTIVE'
         },
         {
           userId: 'PUP003',
           name: 'Jose Rizal',
           department: 'Computer Science',
-          email: 'jose.rizal@pup.edu.ph'
+          email: 'jose.rizal@pup.edu.ph',
+          role: 'STUDENT',
+          status: 'ACTIVE'
         },
         {
           userId: 'USER001',
           name: 'John Doe',
           department: 'Computer Science',
-          email: 'john.doe@pup.edu.ph'
+          email: 'john.doe@pup.edu.ph',
+          role: 'STUDENT',
+          status: 'ACTIVE'
         },
         {
           userId: 'USER002',
           name: 'Jane Smith',
           department: 'Information Technology',
-          email: 'jane.smith@pup.edu.ph'
+          email: 'jane.smith@pup.edu.ph',
+          role: 'STAFF',
+          status: 'ACTIVE'
         },
         {
           userId: 'USER003',
           name: 'Bob Wilson',
           department: 'Computer Engineering',
-          email: 'bob.wilson@pup.edu.ph'
-        },
-        {
-          userId: 'ADMIN001',
-          name: 'Admin User',
-          department: 'Administration',
-          email: 'admin@pup.edu.ph'
+          email: 'bob.wilson@pup.edu.ph',
+          role: 'STUDENT',
+          status: 'ACTIVE'
         }
       ],
       skipDuplicates: true
@@ -347,15 +366,18 @@ export const getAllFiles = async () => {
   }
 };
 
-export const addFile = async (userId, filename, rowPosition, columnPosition, shelfNumber = 1) => {
+export const addFile = async (userId, filename, rowPosition, columnPosition, shelfNumber = 1, categoryId = null, fileType = null, fileUrl = null) => {
   try {
     const file = await prisma.file.create({
       data: {
         userId,
         filename,
-        rowPosition,
-        columnPosition,
-        shelfNumber
+        rowPosition: rowPosition ? parseInt(rowPosition) : null,
+        columnPosition: columnPosition ? parseInt(columnPosition) : null,
+        shelfNumber: shelfNumber ? parseInt(shelfNumber) : 1,
+        categoryId: categoryId ? parseInt(categoryId) : null,
+        fileType,
+        fileUrl
       }
     });
 

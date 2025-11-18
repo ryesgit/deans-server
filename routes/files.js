@@ -53,16 +53,16 @@ router.get('/all', async (req, res) => {
 
 router.post('/add', async (req, res) => {
   try {
-    const { userId, filename, rowPosition, columnPosition, shelfNumber = 1 } = req.body;
+    const { userId, filename, rowPosition, columnPosition, shelfNumber = 1, categoryId, fileType, fileUrl } = req.body;
 
-    if (!userId || !filename || !rowPosition || !columnPosition) {
+    if (!userId || !filename) {
       return res.status(400).json({
         error: 'Missing required fields',
-        required: ['userId', 'filename', 'rowPosition', 'columnPosition']
+        required: ['userId', 'filename']
       });
     }
 
-    const result = await addFile(userId, filename, rowPosition, columnPosition, shelfNumber);
+    const result = await addFile(userId, filename, rowPosition, columnPosition, shelfNumber, categoryId, fileType, fileUrl);
 
     res.status(201).json({
       message: 'File added successfully',
@@ -72,7 +72,10 @@ router.post('/add', async (req, res) => {
         filename,
         rowPosition,
         columnPosition,
-        shelfNumber
+        shelfNumber,
+        categoryId,
+        fileType,
+        fileUrl
       }
     });
   } catch (error) {
