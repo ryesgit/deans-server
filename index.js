@@ -48,6 +48,8 @@ app.use('/api/qr', qrRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/door', doorRoutes);
 
+app.use('/seed-files', express.static(join(__dirname, 'uploads/seed-files')));
+
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'healthy',

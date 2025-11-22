@@ -128,6 +128,8 @@ async function main() {
       {
         userId: 'PUP001',
         filename: 'Engineering_Thesis_2024.pdf',
+        filePath: 'uploads/seed-files/Engineering_Thesis_2024.pdf',
+        fileType: 'application/pdf',
         rowPosition: 1,
         columnPosition: 3,
         shelfNumber: 1,
@@ -137,6 +139,8 @@ async function main() {
       {
         userId: 'PUP001',
         filename: 'Project_Documentation.pdf',
+        filePath: 'uploads/seed-files/Project_Documentation.pdf',
+        fileType: 'application/pdf',
         rowPosition: 2,
         columnPosition: 1,
         shelfNumber: 1,
@@ -146,6 +150,8 @@ async function main() {
       {
         userId: 'PUP002',
         filename: 'Business_Plan_Final.pdf',
+        filePath: 'uploads/seed-files/Business_Plan_Final.pdf',
+        fileType: 'application/pdf',
         rowPosition: 1,
         columnPosition: 5,
         shelfNumber: 1,
@@ -155,6 +161,8 @@ async function main() {
       {
         userId: 'PUP002',
         filename: 'Marketing_Research.pdf',
+        filePath: 'uploads/seed-files/Marketing_Research.pdf',
+        fileType: 'application/pdf',
         rowPosition: 3,
         columnPosition: 2,
         shelfNumber: 1,
@@ -164,6 +172,8 @@ async function main() {
       {
         userId: 'PUP003',
         filename: 'Capstone_Project.pdf',
+        filePath: 'uploads/seed-files/Capstone_Project.pdf',
+        fileType: 'application/pdf',
         rowPosition: 2,
         columnPosition: 4,
         shelfNumber: 1,
@@ -173,6 +183,8 @@ async function main() {
       {
         userId: 'PUP003',
         filename: 'Algorithm_Analysis.pdf',
+        filePath: 'uploads/seed-files/Algorithm_Analysis.pdf',
+        fileType: 'application/pdf',
         rowPosition: 1,
         columnPosition: 1,
         shelfNumber: 1,
@@ -182,6 +194,8 @@ async function main() {
       {
         userId: 'USER001',
         filename: 'John_Thesis_2024.pdf',
+        filePath: 'uploads/seed-files/John_Thesis_2024.pdf',
+        fileType: 'application/pdf',
         rowPosition: 2,
         columnPosition: 2,
         shelfNumber: 1,
@@ -191,6 +205,8 @@ async function main() {
       {
         userId: 'USER003',
         filename: 'Bob_Project_Report.pdf',
+        filePath: 'uploads/seed-files/Bob_Project_Report.pdf',
+        fileType: 'application/pdf',
         rowPosition: 1,
         columnPosition: 4,
         shelfNumber: 1,
@@ -200,6 +216,8 @@ async function main() {
       {
         userId: 'USER003',
         filename: 'Bob_Research_Paper.pdf',
+        filePath: 'uploads/seed-files/Bob_Research_Paper.pdf',
+        fileType: 'application/pdf',
         rowPosition: 3,
         columnPosition: 1,
         shelfNumber: 1,
@@ -209,6 +227,8 @@ async function main() {
       {
         userId: 'ADMIN001',
         filename: 'Administrative_Records.pdf',
+        filePath: 'uploads/seed-files/Administrative_Records.pdf',
+        fileType: 'application/pdf',
         rowPosition: 2,
         columnPosition: 5,
         shelfNumber: 1,
@@ -223,6 +243,14 @@ async function main() {
     acc[f.filename] = f.id;
     return acc;
   }, {});
+
+  const allFiles = await prisma.file.findMany();
+  for (const file of allFiles) {
+    await prisma.file.update({
+      where: { id: file.id },
+      data: { fileUrl: `/api/files/download/${file.id}` },
+    });
+  }
 
   const requests = await prisma.request.createMany({
     data: [

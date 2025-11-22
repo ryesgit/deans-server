@@ -114,6 +114,55 @@ router.post('/upload', uploadLimiter, authenticateToken, upload.single('file'), 
   }
 });
 
+// Download file endpoint by ID
+router.get('/download/:id', readLimiter, async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`Download request for file ID: ${id}`);
+
+    const file = await prisma.file.findUnique({
+      where: { id: parseInt(id) }
+    });
+    console.log('File from DB:', file);
+
+    if (!file || !file.filePath) {
+      return res.status(404).json({
+        error: 'File not found',
+        message: 'The requested file does not exist or has no physical file.'
+      });
+    }
+
+    const filePath = path.resolve(file.filePath);
+    console.log(`Resolved file path: ${filePath}`);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({
+        error: 'File not found',
+        message: 'The file does not exist on the server.'
+      });
+    }
+
+    res.download(filePath, file.filename, (err) => {
+      if (err) {
+        console.error('File download error:', err);
+        if (!res.headersSent) {
+          res.status(500).json({
+            error: 'Failed to download file',
+            message: err.message
+          });
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('File download error:', error);
+    res.status(500).json({
+      error: 'Failed to download file',
+      message: error.message
+    });
+  }
+});
+
 // Download file endpoint
 router.get('/download/:filename', readLimiter, async (req, res) => {
   try {
