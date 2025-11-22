@@ -121,8 +121,55 @@ router.get('/dashboard', readLimiter, authenticateToken, async (req, res) => {
       })
     ]);
 
-    // Format response
+    // Get overdue requests (requests that were approved but not returned by due date)
+    const overdueRequests = await prisma.request.count({
+      where: {
+        ...(userId ? { userId } : {}),
+        status: 'APPROVED',
+        // Add logic for overdue check if you have a dueDate field
+      }
+    });
+
+    // Get resolved overdue (could be declined or cancelled after being overdue)
+    const resolvedOverdue = await prisma.request.count({
+      where: {
+        ...(userId ? { userId } : {}),
+        status: { in: ['DECLINED', 'CANCELLED'] }
+      }
+    });
+
+    // Get recent requests
+    const recentRequests = await prisma.request.findMany({
+      where: userId ? { userId } : {},
+      include: {
+        user: {
+          select: { name: true, department: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10
+    });
+
+    // Format response to match frontend expectations
     const stats = {
+      // Frontend expects these exact property names
+      files: {
+        total: totalFiles,
+        newlyAdded: todayFiles
+      },
+      borrowing: {
+        activeBorrowed: retrievedFiles,
+        returnedToday: todayReturns
+      },
+      approvals: {
+        pending: pendingRequests,
+        approved: approvedRequests
+      },
+      overdueFiles: {
+        overdue: overdueRequests,
+        resolved: resolvedOverdue
+      },
+      // Legacy structure for compatibility
       overview: {
         totalUsers: isAdminOrStaff ? totalUsers : null,
         totalFiles,
@@ -132,11 +179,6 @@ router.get('/dashboard', readLimiter, authenticateToken, async (req, res) => {
         pendingRequests,
         approvedRequests,
         totalTransactions
-      },
-      files: {
-        total: totalFiles,
-        available: availableFiles,
-        retrieved: retrievedFiles
       },
       today: {
         newFiles: todayFiles,
@@ -192,6 +234,19 @@ router.get('/dashboard', readLimiter, authenticateToken, async (req, res) => {
         department: t.user?.department,
         timestamp: t.timestamp,
         notes: t.notes
+      })),
+      recentRequests: recentRequests.map(r => ({
+        id: r.id,
+        title: r.title,
+        description: r.description,
+        type: r.type,
+        status: r.status,
+        priority: r.priority,
+        userName: r.user?.name,
+        department: r.user?.department,
+        createdAt: r.createdAt,
+        approvedAt: r.approvedAt,
+        approvedBy: r.approvedBy
       })),
       user: userStats
     };
