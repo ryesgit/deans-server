@@ -211,10 +211,10 @@ router.post('/add', async (req, res) => {
   try {
     const { userId, filename, rowPosition, columnPosition, shelfNumber = 1, categoryId, fileType, fileUrl } = req.body;
 
-    if (!userId || !filename) {
+    if (!userId || !filename || !rowPosition || !columnPosition) {
       return res.status(400).json({
         error: 'Missing required fields',
-        required: ['userId', 'filename']
+        required: ['userId', 'filename', 'rowPosition', 'columnPosition']
       });
     }
 

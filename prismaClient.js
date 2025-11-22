@@ -221,6 +221,38 @@ export const getUserFiles = async (userId) => {
   }
 };
 
+export const getAvailableFilesForUser = async (userId) => {
+  try {
+    const userWithFiles = await prisma.user.findUnique({
+      where: { userId },
+      include: {
+        files: {
+          where: { status: 'AVAILABLE' },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!userWithFiles) {
+      return [];
+    }
+
+    return userWithFiles.files.map(file => ({
+      id: file.id,
+      userId: file.userId,
+      name: userWithFiles.name,
+      department: userWithFiles.department,
+      filename: file.filename,
+      rowPosition: file.rowPosition,
+      columnPosition: file.columnPosition,
+      shelfNumber: file.shelfNumber
+    }));
+  } catch (error) {
+    console.error('getAvailableFilesForUser error:', error);
+    throw error;
+  }
+};
+
 export const checkUserExists = async (userId) => {
   try {
     const user = await prisma.user.findUnique({
@@ -346,6 +378,13 @@ export const getAllFiles = async () => {
             department: true,
             email: true
           }
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            description: true
+          }
         }
       },
       orderBy: {
@@ -365,7 +404,9 @@ export const getAllFiles = async () => {
       accessed_at: file.accessedAt?.toISOString() || null,
       name: file.user.name,
       department: file.user.department,
-      email: file.user.email
+      email: file.user.email,
+      category: file.category?.name || null,
+      categoryId: file.categoryId
     }));
   } catch (error) {
     console.error('getAllFiles error:', error);
@@ -418,6 +459,13 @@ export const searchFiles = async (query, userId = null) => {
             department: true,
             email: true
           }
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            description: true
+          }
         }
       },
       orderBy: {
@@ -437,7 +485,9 @@ export const searchFiles = async (query, userId = null) => {
       accessed_at: file.accessedAt?.toISOString() || null,
       name: file.user.name,
       department: file.user.department,
-      email: file.user.email
+      email: file.user.email,
+      category: file.category?.name || null,
+      categoryId: file.categoryId
     }));
   } catch (error) {
     console.error('searchFiles error:', error);

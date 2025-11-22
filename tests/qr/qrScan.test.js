@@ -2,12 +2,8 @@ import { jest } from '@jest/globals';
 import request from 'supertest';
 import express from 'express';
 import { mockPrismaClient, mockUsers, mockFiles, resetPrismaMocks } from '../utils/prismaMock.js';
-import { mockAxios, mockESP32Responses, mockESP32ConnectionError, resetAxiosMocks } from '../utils/axiosMock.js';
-
-// Mock Prisma Client
-jest.unstable_mockModule('@prisma/client', () => ({
-  PrismaClient: jest.fn(() => mockPrismaClient),
-}));
+import { mockAxios, mockESP32ConnectionError } from '../utils/axiosMock.js';
+import * as prismaClient from '../../prismaClient.js';
 
 // Mock axios
 jest.unstable_mockModule('axios', () => ({
@@ -37,6 +33,18 @@ const createTestApp = async () => {
 
 describe('QR Code Processing - POST /api/qr/scan', () => {
   let app;
+  const mockUser = mockUsers[0];
+  const userFiles = mockFiles.filter(f => f.userId === 'PUP001' && f.status === 'AVAILABLE');
+  const mappedUserFiles = userFiles.map(file => ({
+    id: file.id,
+    userId: file.userId,
+    name: mockUser.name,
+    department: mockUser.department,
+    filename: file.filename,
+    rowPosition: file.rowPosition,
+    columnPosition: file.columnPosition,
+    shelfNumber: file.shelfNumber
+  }));
 
   beforeAll(async () => {
     // Set ESP32 to simulation mode BEFORE creating the app
@@ -50,19 +58,15 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
   });
 
   beforeEach(() => {
-    resetPrismaMocks();
-    // Don't reset axios mocks here since ESP32Controller is already initialized
+    jest.restoreAllMocks();
   });
 
   describe('Valid QR Scan Scenarios', () => {
-    test('should return file location for valid user ID with available files', async () => {
-      const mockUser = mockUsers[0];
-      const mockFile = mockFiles[0];
-
-      mockPrismaClient.user.findUnique.mockResolvedValue(mockUser);
-      mockPrismaClient.file.findFirst.mockResolvedValue(mockFile);
-      mockPrismaClient.transaction.create.mockResolvedValue({ id: 1 });
-      mockPrismaClient.file.update.mockResolvedValue(mockFile);
+    test('should process all available files for a valid user', async () => {
+      const checkUserExistsSpy = jest.spyOn(prismaClient, 'checkUserExists').mockResolvedValue(true);
+      const getAvailableFilesForUserSpy = jest.spyOn(prismaClient, 'getAvailableFilesForUser').mockResolvedValue(mappedUserFiles);
+      const logAccessSpy = jest.spyOn(prismaClient, 'logAccess').mockResolvedValue({ id: 1 });
+      const updateFileAccessSpy = jest.spyOn(prismaClient, 'updateFileAccess').mockResolvedValue({ updated: 1 });
 
       const response = await request(app)
         .post('/api/qr/scan')
@@ -70,96 +74,46 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(response.body.message).toBe('Door unlocked successfully');
+      expect(response.body.message).toContain('Processed 2 files. 2 succeeded, 0 failed.');
       expect(response.body.user.id).toBe('PUP001');
-      expect(response.body.user.name).toBe('Juan Dela Cruz');
-      expect(response.body.file.filename).toBe('Engineering_Thesis_2024.pdf');
-      expect(response.body.file.row).toBe(1);
-      expect(response.body.file.column).toBe(3);
-      expect(response.body.esp32Response.status).toBe('simulated');
+      expect(response.body.successfulRetrievals).toHaveLength(2);
+      expect(response.body.failedRetrievals).toHaveLength(0);
+      expect(logAccessSpy).toHaveBeenCalledTimes(2);
+      expect(updateFileAccessSpy).toHaveBeenCalledTimes(2);
     });
 
-    test('should return specific file when filename is provided', async () => {
-      const mockUser = mockUsers[0];
-      const mockFile = mockFiles[1]; // Project_Documentation.pdf
-
-      mockPrismaClient.user.findUnique.mockResolvedValue(mockUser);
-      mockPrismaClient.file.findFirst.mockResolvedValue(mockFile);
-      mockPrismaClient.transaction.create.mockResolvedValue({ id: 1 });
-      mockPrismaClient.file.update.mockResolvedValue(mockFile);
-
-      const response = await request(app)
-        .post('/api/qr/scan')
-        .send({
-          userId: 'PUP001',
-          filename: 'Project_Documentation.pdf',
-        })
-        .expect(200);
-
-      expect(response.body.success).toBe(true);
-      expect(response.body.file.filename).toBe('Project_Documentation.pdf');
-      expect(response.body.file.row).toBe(2);
-      expect(response.body.file.column).toBe(1);
-    });
-
-    test('should trigger ESP32 unlock in simulation mode', async () => {
-      const mockUser = mockUsers[0];
-      const mockFile = mockFiles[0];
-
-      mockPrismaClient.user.findUnique.mockResolvedValue(mockUser);
-      mockPrismaClient.file.findFirst.mockResolvedValue(mockFile);
-      mockPrismaClient.transaction.create.mockResolvedValue({ id: 1 });
-      mockPrismaClient.file.update.mockResolvedValue(mockFile);
+    test('should trigger ESP32 unlock for each file in simulation mode', async () => {
+      const checkUserExistsSpy = jest.spyOn(prismaClient, 'checkUserExists').mockResolvedValue(true);
+      const getAvailableFilesForUserSpy = jest.spyOn(prismaClient, 'getAvailableFilesForUser').mockResolvedValue(mappedUserFiles);
+      const logAccessSpy = jest.spyOn(prismaClient, 'logAccess').mockResolvedValue({ id: 1 });
+      const updateFileAccessSpy = jest.spyOn(prismaClient, 'updateFileAccess').mockResolvedValue({ updated: 1 });
 
       const response = await request(app)
         .post('/api/qr/scan')
         .send({ userId: 'PUP001' })
         .expect(200);
 
-      expect(response.body.esp32Response.status).toBe('simulated');
-      expect(response.body.esp32Response.message).toContain('Simulated unlock');
-      expect(mockPrismaClient.transaction.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          userId: 'PUP001',
-          type: 'RETRIEVAL',
-          notes: 'Access granted',
-        }),
-      });
+      expect(response.body.successfulRetrievals[0].esp32Response.status).toBe('simulated');
+      expect(response.body.successfulRetrievals[1].esp32Response.status).toBe('simulated');
+      expect(logAccessSpy).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.anything(), expect.anything(), expect.anything(), true);
     });
 
-    test('should log access and update file status on successful unlock', async () => {
-      const mockUser = mockUsers[0];
-      const mockFile = mockFiles[0];
-
-      mockPrismaClient.user.findUnique.mockResolvedValue(mockUser);
-      mockPrismaClient.file.findFirst.mockResolvedValue(mockFile);
-      mockPrismaClient.transaction.create.mockResolvedValue({ id: 1 });
-      mockPrismaClient.file.update.mockResolvedValue(mockFile);
+    test('should log access and update file status for each successful unlock', async () => {
+      const checkUserExistsSpy = jest.spyOn(prismaClient, 'checkUserExists').mockResolvedValue(true);
+      const getAvailableFilesForUserSpy = jest.spyOn(prismaClient, 'getAvailableFilesForUser').mockResolvedValue(mappedUserFiles);
+      const logAccessSpy = jest.spyOn(prismaClient, 'logAccess').mockResolvedValue({ id: 1 });
+      const updateFileAccessSpy = jest.spyOn(prismaClient, 'updateFileAccess').mockResolvedValue({ updated: 1 });
 
       await request(app)
         .post('/api/qr/scan')
         .send({ userId: 'PUP001' })
         .expect(200);
 
-      // Verify access was logged
-      expect(mockPrismaClient.transaction.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          userId: 'PUP001',
-          fileId: mockFile.id,
-          type: 'RETRIEVAL',
-          rowPosition: 1,
-          columnPosition: 3,
-          notes: 'Access granted',
-        }),
-      });
-
-      // Verify file status was updated
-      expect(mockPrismaClient.file.update).toHaveBeenCalledWith({
-        where: { id: mockFile.id },
-        data: expect.objectContaining({
-          status: 'RETRIEVED',
-        }),
-      });
+      expect(logAccessSpy).toHaveBeenCalledTimes(2);
+      expect(updateFileAccessSpy).toHaveBeenCalledTimes(2);
+      
+      expect(logAccessSpy).toHaveBeenCalledWith('PUP001', userFiles[0].id, 'retrieve', userFiles[0].rowPosition, userFiles[0].columnPosition, true);
+      expect(updateFileAccessSpy).toHaveBeenCalledWith(userFiles[0].id);
     });
   });
 
@@ -174,7 +128,7 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
     });
 
     test('should return 404 when user does not exist', async () => {
-      mockPrismaClient.user.findUnique.mockResolvedValue(null);
+      const checkUserExistsSpy = jest.spyOn(prismaClient, 'checkUserExists').mockResolvedValue(false);
 
       const response = await request(app)
         .post('/api/qr/scan')
@@ -186,10 +140,8 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
     });
 
     test('should return 404 when user exists but has no available files', async () => {
-      const mockUser = mockUsers[3]; // USER002
-      
-      mockPrismaClient.user.findUnique.mockResolvedValue(mockUser);
-      mockPrismaClient.file.findFirst.mockResolvedValue(null);
+      const checkUserExistsSpy = jest.spyOn(prismaClient, 'checkUserExists').mockResolvedValue(true);
+      const getAvailableFilesForUserSpy = jest.spyOn(prismaClient, 'getAvailableFilesForUser').mockResolvedValue([]);
 
       const response = await request(app)
         .post('/api/qr/scan')
@@ -200,38 +152,9 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
       expect(response.body.message).toContain('No available files');
     });
 
-    test('should return 500 and log failure when ESP32 unlock fails', async () => {
-      const mockUser = mockUsers[0];
-      const mockFile = mockFiles[0];
-
-      mockPrismaClient.user.findUnique.mockResolvedValue(mockUser);
-      mockPrismaClient.file.findFirst.mockResolvedValue(mockFile);
-      mockPrismaClient.transaction.create.mockResolvedValue({ id: 1 });
-
-      // ESP32 is in simulation mode (default from beforeEach)
-      // Simulation mode won't fail, but we can still test that logging works
-
-      const response = await request(app)
-        .post('/api/qr/scan')
-        .send({ userId: 'PUP001' })
-        .expect(200);
-
-      // In simulation mode, it should succeed
-      expect(response.body.success).toBe(true);
-      expect(response.body.esp32Response.status).toBe('simulated');
-
-      // Verify success was logged
-      expect(mockPrismaClient.transaction.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          notes: 'Access granted',
-        }),
-      });
-    });
-
-    test('should return 500 on database error', async () => {
-      // User check succeeds but file lookup fails with DB error
-      mockPrismaClient.user.findUnique.mockResolvedValue(mockUsers[0]);
-      mockPrismaClient.file.findFirst.mockRejectedValue(new Error('Database error'));
+    test('should return 500 on database error during file fetch', async () => {
+      const checkUserExistsSpy = jest.spyOn(prismaClient, 'checkUserExists').mockResolvedValue(true);
+      const getAvailableFilesForUserSpy = jest.spyOn(prismaClient, 'getAvailableFilesForUser').mockRejectedValue(new Error('Database error'));
 
       const response = await request(app)
         .post('/api/qr/scan')
@@ -245,36 +168,24 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
 
   describe('Test Endpoint - GET /api/qr/test/:userId', () => {
     test('should return file data for valid user', async () => {
-      const mockFile = mockFiles[0];
-      mockPrismaClient.file.findFirst.mockResolvedValue(mockFile);
+      const getUserFilesSpy = jest.spyOn(prismaClient, 'getUserFiles').mockResolvedValue([mockFiles[0]]);
 
       const response = await request(app)
         .get('/api/qr/test/PUP001')
         .expect(200);
 
       expect(response.body.message).toBe('Test lookup successful');
-      expect(response.body.data.filename).toBe('Engineering_Thesis_2024.pdf');
+      expect(response.body.data[0].filename).toBe('Engineering_Thesis_2024.pdf');
     });
 
     test('should return 404 when file not found', async () => {
-      mockPrismaClient.file.findFirst.mockResolvedValue(null);
+      const getUserFilesSpy = jest.spyOn(prismaClient, 'getUserFiles').mockResolvedValue([]);
 
       const response = await request(app)
         .get('/api/qr/test/UNKNOWN')
         .expect(404);
 
       expect(response.body.error).toBe('File not found');
-    });
-
-    test('should handle filename query parameter', async () => {
-      const mockFile = mockFiles[1];
-      mockPrismaClient.file.findFirst.mockResolvedValue(mockFile);
-
-      const response = await request(app)
-        .get('/api/qr/test/PUP001?filename=Project_Documentation.pdf')
-        .expect(200);
-
-      expect(response.body.data.filename).toBe('Project_Documentation.pdf');
     });
   });
 });

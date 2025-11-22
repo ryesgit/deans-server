@@ -173,6 +173,9 @@ describe('Database Layer - Prisma Client Functions', () => {
           rowPosition: 3,
           columnPosition: 4,
           shelfNumber: 1,
+          categoryId: null,
+          fileType: null,
+          fileUrl: null,
         },
       });
     });
