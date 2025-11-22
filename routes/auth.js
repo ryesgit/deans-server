@@ -138,19 +138,28 @@ router.post('/login', /*authLimiter,*/ async (req, res) => {
       { expiresIn: JWT_EXPIRATION }
     );
 
-    // Return user info and token
+    const updatedUser = await prisma.user.findUnique({
+      where: { userId: user.userId },
+      select: {
+        id: true,
+        userId: true,
+        name: true,
+        email: true,
+        role: true,
+        department: true,
+        contactNumber: true,
+        gender: true,
+        dateOfBirth: true,
+        status: true,
+        avatar: true,
+        lastLogin: true
+      }
+    });
+
     res.json({
       message: 'Login successful',
       token,
-      user: {
-        userId: user.userId,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        department: user.department,
-        status: user.status,
-        avatar: user.avatar
-      }
+      user: updatedUser
     });
 
   } catch (error) {
