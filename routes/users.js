@@ -38,6 +38,7 @@ router.get('/', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF')
           department: true,
           contactNumber: true,
           gender: true,
+          dateOfBirth: true,
           status: true,
           avatar: true,
           lastLogin: true,

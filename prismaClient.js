@@ -39,7 +39,10 @@ const seedDatabase = async () => {
           email: 'admin@pup.edu.ph',
           password: adminPassword,
           role: 'ADMIN',
-          status: 'ACTIVE'
+          status: 'ACTIVE',
+          gender: 'Male',
+          contactNumber: '+63 917 123 4567',
+          dateOfBirth: new Date('1985-06-15')
         },
         {
           userId: 'PUP001',
@@ -48,7 +51,10 @@ const seedDatabase = async () => {
           department: 'Engineering',
           email: 'juan.delacruz@pup.edu.ph',
           role: 'STUDENT',
-          status: 'ACTIVE'
+          status: 'ACTIVE',
+          gender: 'Male',
+          contactNumber: '+63 917 234 5678',
+          dateOfBirth: new Date('2002-03-21')
         },
         {
           userId: 'PUP002',
@@ -57,7 +63,10 @@ const seedDatabase = async () => {
           department: 'Business Administration',
           email: 'maria.santos@pup.edu.ph',
           role: 'STUDENT',
-          status: 'ACTIVE'
+          status: 'ACTIVE',
+          gender: 'Female',
+          contactNumber: '+63 917 345 6789',
+          dateOfBirth: new Date('2001-08-10')
         },
         {
           userId: 'PUP003',
@@ -66,7 +75,10 @@ const seedDatabase = async () => {
           department: 'Computer Science',
           email: 'jose.rizal@pup.edu.ph',
           role: 'STUDENT',
-          status: 'ACTIVE'
+          status: 'ACTIVE',
+          gender: 'Male',
+          contactNumber: '+63 917 456 7890',
+          dateOfBirth: new Date('2003-12-30')
         },
         {
           userId: 'USER001',
@@ -75,7 +87,10 @@ const seedDatabase = async () => {
           department: 'Computer Science',
           email: 'john.doe@pup.edu.ph',
           role: 'STUDENT',
-          status: 'ACTIVE'
+          status: 'ACTIVE',
+          gender: 'Male',
+          contactNumber: '+63 917 567 8901',
+          dateOfBirth: new Date('2002-05-14')
         },
         {
           userId: 'USER002',
@@ -84,7 +99,10 @@ const seedDatabase = async () => {
           department: 'Information Technology',
           email: 'jane.smith@pup.edu.ph',
           role: 'STAFF',
-          status: 'ACTIVE'
+          status: 'ACTIVE',
+          gender: 'Female',
+          contactNumber: '+63 917 678 9012',
+          dateOfBirth: new Date('1990-11-25')
         },
         {
           userId: 'USER003',
@@ -93,7 +111,10 @@ const seedDatabase = async () => {
           department: 'Computer Engineering',
           email: 'bob.wilson@pup.edu.ph',
           role: 'STUDENT',
-          status: 'ACTIVE'
+          status: 'ACTIVE',
+          gender: 'Male',
+          contactNumber: '+63 917 789 0123',
+          dateOfBirth: new Date('2003-01-07')
         }
       ],
       skipDuplicates: true
