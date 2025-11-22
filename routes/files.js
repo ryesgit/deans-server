@@ -7,7 +7,7 @@ import { dirname } from 'path';
 import { getUserFiles, getAllFiles, addFile, searchFiles, returnFile, prisma } from '../prismaClient.js';
 import { ESP32Controller } from '../esp32Controller.js';
 import { authenticateToken, optionalAuth } from '../middleware/auth.js';
-import { uploadLimiter, readLimiter } from '../middleware/rateLimiter.js';
+import { uploadLimiter, readLimiter, apiLimiter } from '../middleware/rateLimiter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -271,6 +271,105 @@ router.get('/search', async (req, res) => {
   }
 });
 
+router.patch('/:id', apiLimiter, authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, filename, department, category, categoryId } = req.body;
+
+    const file = await prisma.file.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!file) {
+      return res.status(404).json({
+        error: 'File not found',
+        message: 'No file found with that ID'
+      });
+    }
+
+    const updateData = {};
+    if (name || filename) updateData.filename = name || filename;
+    if (categoryId) updateData.categoryId = parseInt(categoryId);
+
+    if (category && !categoryId) {
+      const categoryRecord = await prisma.category.findFirst({
+        where: { name: category }
+      });
+      if (categoryRecord) {
+        updateData.categoryId = categoryRecord.id;
+      }
+    }
+
+    const updatedFile = await prisma.file.update({
+      where: { id: parseInt(id) },
+      data: updateData,
+      include: {
+        category: {
+          select: { id: true, name: true, description: true }
+        },
+        user: {
+          select: { name: true, department: true }
+        }
+      }
+    });
+
+    res.json({
+      message: 'File updated successfully',
+      file: updatedFile
+    });
+
+  } catch (error) {
+    console.error('File update error:', error);
+    res.status(500).json({
+      error: 'Failed to update file',
+      message: error.message
+    });
+  }
+});
+
+router.delete('/:id', apiLimiter, authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const file = await prisma.file.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!file) {
+      return res.status(404).json({
+        error: 'File not found',
+        message: 'No file found with that ID'
+      });
+    }
+
+    await prisma.file.delete({
+      where: { id: parseInt(id) }
+    });
+
+    if (file.fileUrl) {
+      const filename = path.basename(file.fileUrl);
+      const uploadDir = process.env.UPLOAD_DIR || './uploads';
+      const filePath = path.join(uploadDir, filename);
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    res.json({
+      message: 'File deleted successfully',
+      fileId: parseInt(id)
+    });
+
+  } catch (error) {
+    console.error('File delete error:', error);
+    res.status(500).json({
+      error: 'Failed to delete file',
+      message: error.message
+    });
+  }
+});
+
 router.post('/return', async (req, res) => {
   try {
     const { userId, fileId, rowPosition, columnPosition } = req.body;
@@ -283,7 +382,7 @@ router.post('/return', async (req, res) => {
     }
 
     const result = await returnFile(userId, fileId);
-    
+
     if (!result.success) {
       return res.status(400).json({
         error: result.message
