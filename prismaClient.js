@@ -391,28 +391,6 @@ export const updateFileAccess = async (fileId) => {
 
 export const getAllFiles = async () => {
   try {
-    const files = await prisma.file.findMany({
-      include: {
-        user: {
-          select: {
-            name: true,
-            department: true,
-            email: true
-          }
-        },
-        category: {
-          select: {
-            id: true,
-            name: true,
-            description: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
-
     return files.map(file => ({
       id: file.id,
       user_id: file.userId,
@@ -435,7 +413,7 @@ export const getAllFiles = async () => {
   }
 };
 
-export const addFile = async (userId, filename, rowPosition, columnPosition, shelfNumber = 1, categoryId = null, fileType = null, fileUrl = null) => {
+export const addFile = async (userId, filename, rowPosition, columnPosition, shelfNumber = 1, categoryId = null, fileType = null, fileUrl = null, filePath = null) => {
   try {
     const file = await prisma.file.create({
       data: {
@@ -446,7 +424,8 @@ export const addFile = async (userId, filename, rowPosition, columnPosition, she
         shelfNumber: shelfNumber ? parseInt(shelfNumber) : 1,
         categoryId: categoryId ? parseInt(categoryId) : null,
         fileType,
-        fileUrl
+        fileUrl,
+        filePath
       }
     });
 

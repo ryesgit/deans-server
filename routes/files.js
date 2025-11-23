@@ -83,7 +83,8 @@ router.post('/upload', uploadLimiter, authenticateToken, upload.single('file'), 
       shelfNumber,
       categoryId,
       finalFileType,
-      fileUrl
+      fileUrl,
+      req.file.path
     );
 
     res.status(201).json({
@@ -323,7 +324,7 @@ router.get('/search', async (req, res) => {
 router.patch('/:id', apiLimiter, authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, filename, department, category, categoryId } = req.body;
+    const { name, filename, department, category, categoryId, filePath } = req.body;
 
     const file = await prisma.file.findUnique({
       where: { id: parseInt(id) }
@@ -339,6 +340,7 @@ router.patch('/:id', apiLimiter, authenticateToken, async (req, res) => {
     const updateData = {};
     if (name || filename) updateData.filename = name || filename;
     if (categoryId) updateData.categoryId = parseInt(categoryId);
+    if (filePath) updateData.filePath = filePath;
 
     if (category && !categoryId) {
       const categoryRecord = await prisma.category.findFirst({
