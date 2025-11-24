@@ -248,7 +248,7 @@ export const getAvailableFilesForUser = async (userId) => {
       where: { userId },
       include: {
         files: {
-          where: { status: 'AVAILABLE' },
+          where: { status: 'CHECKED_OUT' },
           orderBy: { createdAt: 'desc' },
         },
       },
@@ -266,10 +266,44 @@ export const getAvailableFilesForUser = async (userId) => {
       filename: file.filename,
       rowPosition: file.rowPosition,
       columnPosition: file.columnPosition,
-      shelfNumber: file.shelfNumber
+      shelfNumber: file.shelfNumber,
+      status: file.status
     }));
   } catch (error) {
     console.error('getAvailableFilesForUser error:', error);
+    throw error;
+  }
+};
+
+export const getRetrievedFilesForUser = async (userId) => {
+  try {
+    const userWithFiles = await prisma.user.findUnique({
+      where: { userId },
+      include: {
+        files: {
+          where: { status: 'RETRIEVED' },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!userWithFiles) {
+      return [];
+    }
+
+    return userWithFiles.files.map(file => ({
+      id: file.id,
+      userId: file.userId,
+      name: userWithFiles.name,
+      department: userWithFiles.department,
+      filename: file.filename,
+      rowPosition: file.rowPosition,
+      columnPosition: file.columnPosition,
+      shelfNumber: file.shelfNumber,
+      status: file.status
+    }));
+  } catch (error) {
+    console.error('getRetrievedFilesForUser error:', error);
     throw error;
   }
 };
@@ -481,6 +515,7 @@ export const searchFiles = async (query, userId = null) => {
       row_position: file.rowPosition,
       column_position: file.columnPosition,
       shelf_number: file.shelfNumber,
+      status: file.status,
       created_at: file.createdAt.toISOString(),
       accessed_at: file.accessedAt?.toISOString() || null,
       name: file.user.name,
