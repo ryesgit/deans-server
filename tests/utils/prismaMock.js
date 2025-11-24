@@ -7,9 +7,11 @@ export const mockPrismaClient = {
   user: {
     findUnique: jest.fn(),
     findMany: jest.fn(),
+    findFirst: jest.fn(),
     create: jest.fn(),
     createMany: jest.fn(),
     count: jest.fn(),
+    update: jest.fn(),
   },
   file: {
     findMany: jest.fn(),

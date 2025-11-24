@@ -3,11 +3,37 @@ import request from 'supertest';
 import express from 'express';
 import { mockPrismaClient, mockUsers, mockFiles, resetPrismaMocks } from '../utils/prismaMock.js';
 import { mockAxios, mockESP32ConnectionError } from '../utils/axiosMock.js';
-import * as prismaClient from '../../prismaClient.js';
 
 // Mock axios
 jest.unstable_mockModule('axios', () => ({
   default: mockAxios,
+}));
+
+// Create mock functions for prismaClient module
+const mockCheckUserExists = jest.fn();
+const mockGetAvailableFilesForUser = jest.fn();
+const mockGetFileLocation = jest.fn();
+const mockLogAccess = jest.fn();
+const mockUpdateFileAccess = jest.fn();
+const mockGetAccessLogs = jest.fn();
+const mockAddFile = jest.fn();
+const mockGetUserFiles = jest.fn();
+
+// Mock prismaClient module BEFORE any routes are imported
+jest.unstable_mockModule('../../prismaClient.js', () => ({
+  initializeDatabase: jest.fn(),
+  checkUserExists: mockCheckUserExists,
+  getAvailableFilesForUser: mockGetAvailableFilesForUser,
+  getFileLocation: mockGetFileLocation,
+  logAccess: mockLogAccess,
+  updateFileAccess: mockUpdateFileAccess,
+  getAccessLogs: mockGetAccessLogs,
+  addFile: mockAddFile,
+  getUserFiles: mockGetUserFiles,
+  prisma: {
+    $connect: jest.fn(),
+    $disconnect: jest.fn(),
+  },
 }));
 
 // Create test app
@@ -58,15 +84,15 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
   });
 
   beforeEach(() => {
-    jest.restoreAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('Valid QR Scan Scenarios', () => {
     test('should process all available files for a valid user', async () => {
-      const checkUserExistsSpy = jest.spyOn(prismaClient, 'checkUserExists').mockResolvedValue(true);
-      const getAvailableFilesForUserSpy = jest.spyOn(prismaClient, 'getAvailableFilesForUser').mockResolvedValue(mappedUserFiles);
-      const logAccessSpy = jest.spyOn(prismaClient, 'logAccess').mockResolvedValue({ id: 1 });
-      const updateFileAccessSpy = jest.spyOn(prismaClient, 'updateFileAccess').mockResolvedValue({ updated: 1 });
+      mockCheckUserExists.mockResolvedValue(true);
+      mockGetAvailableFilesForUser.mockResolvedValue(mappedUserFiles);
+      mockLogAccess.mockResolvedValue({ id: 1 });
+      mockUpdateFileAccess.mockResolvedValue({ updated: 1 });
 
       const response = await request(app)
         .post('/api/qr/scan')
@@ -78,15 +104,15 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
       expect(response.body.user.id).toBe('PUP001');
       expect(response.body.successfulRetrievals).toHaveLength(2);
       expect(response.body.failedRetrievals).toHaveLength(0);
-      expect(logAccessSpy).toHaveBeenCalledTimes(2);
-      expect(updateFileAccessSpy).toHaveBeenCalledTimes(2);
+      expect(mockLogAccess).toHaveBeenCalledTimes(2);
+      expect(mockUpdateFileAccess).toHaveBeenCalledTimes(2);
     });
 
     test('should trigger ESP32 unlock for each file in simulation mode', async () => {
-      const checkUserExistsSpy = jest.spyOn(prismaClient, 'checkUserExists').mockResolvedValue(true);
-      const getAvailableFilesForUserSpy = jest.spyOn(prismaClient, 'getAvailableFilesForUser').mockResolvedValue(mappedUserFiles);
-      const logAccessSpy = jest.spyOn(prismaClient, 'logAccess').mockResolvedValue({ id: 1 });
-      const updateFileAccessSpy = jest.spyOn(prismaClient, 'updateFileAccess').mockResolvedValue({ updated: 1 });
+      mockCheckUserExists.mockResolvedValue(true);
+      mockGetAvailableFilesForUser.mockResolvedValue(mappedUserFiles);
+      mockLogAccess.mockResolvedValue({ id: 1 });
+      mockUpdateFileAccess.mockResolvedValue({ updated: 1 });
 
       const response = await request(app)
         .post('/api/qr/scan')
@@ -95,25 +121,25 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
 
       expect(response.body.successfulRetrievals[0].esp32Response.status).toBe('simulated');
       expect(response.body.successfulRetrievals[1].esp32Response.status).toBe('simulated');
-      expect(logAccessSpy).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.anything(), expect.anything(), expect.anything(), true);
+      expect(mockLogAccess).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.anything(), expect.anything(), expect.anything(), true);
     });
 
     test('should log access and update file status for each successful unlock', async () => {
-      const checkUserExistsSpy = jest.spyOn(prismaClient, 'checkUserExists').mockResolvedValue(true);
-      const getAvailableFilesForUserSpy = jest.spyOn(prismaClient, 'getAvailableFilesForUser').mockResolvedValue(mappedUserFiles);
-      const logAccessSpy = jest.spyOn(prismaClient, 'logAccess').mockResolvedValue({ id: 1 });
-      const updateFileAccessSpy = jest.spyOn(prismaClient, 'updateFileAccess').mockResolvedValue({ updated: 1 });
+      mockCheckUserExists.mockResolvedValue(true);
+      mockGetAvailableFilesForUser.mockResolvedValue(mappedUserFiles);
+      mockLogAccess.mockResolvedValue({ id: 1 });
+      mockUpdateFileAccess.mockResolvedValue({ updated: 1 });
 
       await request(app)
         .post('/api/qr/scan')
         .send({ userId: 'PUP001' })
         .expect(200);
 
-      expect(logAccessSpy).toHaveBeenCalledTimes(2);
-      expect(updateFileAccessSpy).toHaveBeenCalledTimes(2);
+      expect(mockLogAccess).toHaveBeenCalledTimes(2);
+      expect(mockUpdateFileAccess).toHaveBeenCalledTimes(2);
       
-      expect(logAccessSpy).toHaveBeenCalledWith('PUP001', userFiles[0].id, 'retrieve', userFiles[0].rowPosition, userFiles[0].columnPosition, true);
-      expect(updateFileAccessSpy).toHaveBeenCalledWith(userFiles[0].id);
+      expect(mockLogAccess).toHaveBeenCalledWith('PUP001', userFiles[0].id, 'retrieve', userFiles[0].rowPosition, userFiles[0].columnPosition, true);
+      expect(mockUpdateFileAccess).toHaveBeenCalledWith(userFiles[0].id);
     });
   });
 
@@ -128,7 +154,7 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
     });
 
     test('should return 404 when user does not exist', async () => {
-      const checkUserExistsSpy = jest.spyOn(prismaClient, 'checkUserExists').mockResolvedValue(false);
+      mockCheckUserExists.mockResolvedValue(false);
 
       const response = await request(app)
         .post('/api/qr/scan')
@@ -140,8 +166,8 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
     });
 
     test('should return 404 when user exists but has no available files', async () => {
-      const checkUserExistsSpy = jest.spyOn(prismaClient, 'checkUserExists').mockResolvedValue(true);
-      const getAvailableFilesForUserSpy = jest.spyOn(prismaClient, 'getAvailableFilesForUser').mockResolvedValue([]);
+      mockCheckUserExists.mockResolvedValue(true);
+      mockGetAvailableFilesForUser.mockResolvedValue([]);
 
       const response = await request(app)
         .post('/api/qr/scan')
@@ -153,8 +179,8 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
     });
 
     test('should return 500 on database error during file fetch', async () => {
-      const checkUserExistsSpy = jest.spyOn(prismaClient, 'checkUserExists').mockResolvedValue(true);
-      const getAvailableFilesForUserSpy = jest.spyOn(prismaClient, 'getAvailableFilesForUser').mockRejectedValue(new Error('Database error'));
+      mockCheckUserExists.mockResolvedValue(true);
+      mockGetAvailableFilesForUser.mockRejectedValue(new Error('Database error'));
 
       const response = await request(app)
         .post('/api/qr/scan')
@@ -168,7 +194,7 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
 
   describe('Test Endpoint - GET /api/qr/test/:userId', () => {
     test('should return file data for valid user', async () => {
-      const getUserFilesSpy = jest.spyOn(prismaClient, 'getUserFiles').mockResolvedValue([mockFiles[0]]);
+      mockGetUserFiles.mockResolvedValue([mockFiles[0]]);
 
       const response = await request(app)
         .get('/api/qr/test/PUP001')
@@ -179,7 +205,7 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
     });
 
     test('should return 404 when file not found', async () => {
-      const getUserFilesSpy = jest.spyOn(prismaClient, 'getUserFiles').mockResolvedValue([]);
+      mockGetUserFiles.mockResolvedValue([]);
 
       const response = await request(app)
         .get('/api/qr/test/UNKNOWN')
