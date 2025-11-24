@@ -1,10 +1,31 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
+import QRCode from 'qrcode';
+import { promises as fs } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { prisma } from '../prismaClient.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
 import { readLimiter, userOperationsLimiter } from '../middleware/rateLimiter.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const router = express.Router();
+
+async function generateUserQRCode(userId) {
+  const qrDir = path.join(__dirname, '..', 'uploads', 'qrcodes');
+  await fs.mkdir(qrDir, { recursive: true });
+
+  const qrPath = path.join(qrDir, `${userId}.png`);
+  await QRCode.toFile(qrPath, userId, {
+    width: 300,
+    margin: 2,
+    errorCorrectionLevel: 'H'
+  });
+
+  return `/qrcodes/${userId}.png`;
+}
 
 // Get all users (Admin/Staff only)
 router.get('/', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
@@ -32,6 +53,7 @@ router.get('/', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF')
         select: {
           id: true,
           userId: true,
+          idNumber: true,
           name: true,
           email: true,
           role: true,
@@ -99,6 +121,7 @@ router.get('/:id', readLimiter, authenticateToken, async (req, res) => {
       select: {
         id: true,
         userId: true,
+        idNumber: true,
         name: true,
         email: true,
         role: true,
@@ -195,9 +218,12 @@ router.post('/', userOperationsLimiter, authenticateToken, authorizeRoles('ADMIN
       hashedPassword = await bcrypt.hash(password, 10);
     }
 
+    const qrCodeUrl = await generateUserQRCode(userId);
+
     const newUser = await prisma.user.create({
       data: {
         userId,
+        idNumber: req.body.idNumber || null,
         name,
         email,
         password: hashedPassword,
@@ -206,11 +232,13 @@ router.post('/', userOperationsLimiter, authenticateToken, authorizeRoles('ADMIN
         contactNumber,
         gender,
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-        status
+        status,
+        avatar: qrCodeUrl
       },
       select: {
         id: true,
         userId: true,
+        idNumber: true,
         name: true,
         email: true,
         role: true,
@@ -219,6 +247,7 @@ router.post('/', userOperationsLimiter, authenticateToken, authorizeRoles('ADMIN
         gender: true,
         dateOfBirth: true,
         status: true,
+        avatar: true,
         createdAt: true
       }
     });
@@ -241,7 +270,20 @@ router.post('/', userOperationsLimiter, authenticateToken, authorizeRoles('ADMIN
 router.put('/:id', userOperationsLimiter, authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const isOwnProfile = req.user.userId === id;
+
+    const numericId = !isNaN(id) ? parseInt(id) : null;
+    const whereClause = numericId ? { id: numericId } : { userId: id };
+
+    const existingUser = await prisma.user.findFirst({ where: whereClause });
+
+    if (!existingUser) {
+      return res.status(404).json({
+        error: 'User not found',
+        message: 'No user found with that ID'
+      });
+    }
+
+    const isOwnProfile = req.user.userId === existingUser.userId;
     const isAdmin = req.user.role === 'ADMIN';
 
     if (!isOwnProfile && !isAdmin) {
@@ -260,19 +302,21 @@ router.put('/:id', userOperationsLimiter, authenticateToken, async (req, res) =>
       gender,
       dateOfBirth,
       status,
-      avatar
+      avatar,
+      idNumber,
+      profilePicture
     } = req.body;
 
     const updateData = {};
-    
-    // Fields anyone can update on their own profile
+
     if (name) updateData.name = name;
     if (contactNumber !== undefined) updateData.contactNumber = contactNumber;
     if (gender) updateData.gender = gender;
     if (dateOfBirth) updateData.dateOfBirth = new Date(dateOfBirth);
     if (avatar !== undefined) updateData.avatar = avatar;
+    if (profilePicture !== undefined) updateData.avatar = profilePicture;
+    if (idNumber !== undefined) updateData.idNumber = idNumber;
 
-    // Fields only admin can update
     if (isAdmin) {
       if (email !== undefined) updateData.email = email;
       if (role) updateData.role = role;
@@ -281,7 +325,7 @@ router.put('/:id', userOperationsLimiter, authenticateToken, async (req, res) =>
     }
 
     const updatedUser = await prisma.user.update({
-      where: { userId: id },
+      where: whereClause,
       data: updateData,
       select: {
         id: true,
@@ -295,6 +339,8 @@ router.put('/:id', userOperationsLimiter, authenticateToken, async (req, res) =>
         dateOfBirth: true,
         status: true,
         avatar: true,
+        idNumber: true,
+        createdAt: true,
         updatedAt: true
       }
     });
@@ -306,6 +352,14 @@ router.put('/:id', userOperationsLimiter, authenticateToken, async (req, res) =>
 
   } catch (error) {
     console.error('Update user error:', error);
+
+    if (error.code === 'P2025') {
+      return res.status(404).json({
+        error: 'User not found',
+        message: 'No user found with that ID'
+      });
+    }
+
     res.status(500).json({
       error: 'Failed to update user',
       message: error.message

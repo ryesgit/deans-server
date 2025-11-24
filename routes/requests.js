@@ -311,20 +311,54 @@ router.put('/:id/approve', apiLimiter, authenticateToken, authorizeRoles('ADMIN'
       }
     });
 
+    // Find and update file status to CHECKED_OUT
+    console.log(`🔍 Searching for file: userId=${request.user.userId}, title contains="${request.title}", status=AVAILABLE`);
+
+    const file = await prisma.file.findFirst({
+      where: {
+        userId: request.user.userId,
+        filename: {
+          contains: request.title,
+          mode: 'insensitive'
+        },
+        status: 'AVAILABLE'
+      }
+    });
+
+    if (file) {
+      console.log(`✅ FOUND file ID ${file.id}: ${file.filename} (status: ${file.status})`);
+      await prisma.file.update({
+        where: { id: file.id },
+        data: { status: 'CHECKED_OUT' }
+      });
+      console.log(`✅ File ${file.filename} status updated to CHECKED_OUT for user ${request.user.userId}`);
+    } else {
+      console.log(`❌ No matching AVAILABLE file found for request: ${request.title}`);
+      console.log(`   User ID: ${request.user.userId}`);
+
+      // Debug: show what files exist
+      const userFiles = await prisma.file.findMany({
+        where: { userId: request.user.userId },
+        select: { id: true, filename: true, status: true }
+      });
+      console.log(`   User has ${userFiles.length} files:`, userFiles);
+    }
+
     // Create notification for request owner
     await prisma.notification.create({
       data: {
         userId: request.user.userId,
         type: 'SUCCESS',
         title: 'Request Approved',
-        message: `Your request "${request.title}" has been approved by ${req.user.name}${notes ? `: ${notes}` : ''}`,
+        message: `Your request "${request.title}" has been approved by ${req.user.name}${notes ? `: ${notes}` : ''}. ${file ? 'Your file is now ready for pickup.' : ''}`,
         link: `/requests/${request.id}`
       }
     });
 
     res.json({
       message: 'Request approved successfully',
-      request: updatedRequest
+      request: updatedRequest,
+      fileUpdated: !!file
     });
 
   } catch (error) {

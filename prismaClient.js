@@ -248,7 +248,7 @@ export const getAvailableFilesForUser = async (userId) => {
       where: { userId },
       include: {
         files: {
-          where: { status: 'AVAILABLE' },
+          where: { status: 'CHECKED_OUT' },
           orderBy: { createdAt: 'desc' },
         },
       },
@@ -266,10 +266,44 @@ export const getAvailableFilesForUser = async (userId) => {
       filename: file.filename,
       rowPosition: file.rowPosition,
       columnPosition: file.columnPosition,
-      shelfNumber: file.shelfNumber
+      shelfNumber: file.shelfNumber,
+      status: file.status
     }));
   } catch (error) {
     console.error('getAvailableFilesForUser error:', error);
+    throw error;
+  }
+};
+
+export const getRetrievedFilesForUser = async (userId) => {
+  try {
+    const userWithFiles = await prisma.user.findUnique({
+      where: { userId },
+      include: {
+        files: {
+          where: { status: 'RETRIEVED' },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!userWithFiles) {
+      return [];
+    }
+
+    return userWithFiles.files.map(file => ({
+      id: file.id,
+      userId: file.userId,
+      name: userWithFiles.name,
+      department: userWithFiles.department,
+      filename: file.filename,
+      rowPosition: file.rowPosition,
+      columnPosition: file.columnPosition,
+      shelfNumber: file.shelfNumber,
+      status: file.status
+    }));
+  } catch (error) {
+    console.error('getRetrievedFilesForUser error:', error);
     throw error;
   }
 };
@@ -391,28 +425,6 @@ export const updateFileAccess = async (fileId) => {
 
 export const getAllFiles = async () => {
   try {
-    const files = await prisma.file.findMany({
-      include: {
-        user: {
-          select: {
-            name: true,
-            department: true,
-            email: true
-          }
-        },
-        category: {
-          select: {
-            id: true,
-            name: true,
-            description: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
-
     return files.map(file => ({
       id: file.id,
       user_id: file.userId,
@@ -435,7 +447,7 @@ export const getAllFiles = async () => {
   }
 };
 
-export const addFile = async (userId, filename, rowPosition, columnPosition, shelfNumber = 1, categoryId = null, fileType = null, fileUrl = null) => {
+export const addFile = async (userId, filename, rowPosition, columnPosition, shelfNumber = 1, categoryId = null, fileType = null, fileUrl = null, filePath = null) => {
   try {
     const file = await prisma.file.create({
       data: {
@@ -446,7 +458,8 @@ export const addFile = async (userId, filename, rowPosition, columnPosition, she
         shelfNumber: shelfNumber ? parseInt(shelfNumber) : 1,
         categoryId: categoryId ? parseInt(categoryId) : null,
         fileType,
-        fileUrl
+        fileUrl,
+        filePath
       }
     });
 
@@ -502,6 +515,7 @@ export const searchFiles = async (query, userId = null) => {
       row_position: file.rowPosition,
       column_position: file.columnPosition,
       shelf_number: file.shelfNumber,
+      status: file.status,
       created_at: file.createdAt.toISOString(),
       accessed_at: file.accessedAt?.toISOString() || null,
       name: file.user.name,
