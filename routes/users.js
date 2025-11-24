@@ -1,10 +1,31 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
+import QRCode from 'qrcode';
+import { promises as fs } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { prisma } from '../prismaClient.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
 import { readLimiter, userOperationsLimiter } from '../middleware/rateLimiter.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const router = express.Router();
+
+async function generateUserQRCode(userId) {
+  const qrDir = path.join(__dirname, '..', 'uploads', 'qrcodes');
+  await fs.mkdir(qrDir, { recursive: true });
+
+  const qrPath = path.join(qrDir, `${userId}.png`);
+  await QRCode.toFile(qrPath, userId, {
+    width: 300,
+    margin: 2,
+    errorCorrectionLevel: 'H'
+  });
+
+  return `/qrcodes/${userId}.png`;
+}
 
 // Get all users (Admin/Staff only)
 router.get('/', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
@@ -195,6 +216,8 @@ router.post('/', userOperationsLimiter, authenticateToken, authorizeRoles('ADMIN
       hashedPassword = await bcrypt.hash(password, 10);
     }
 
+    const qrCodeUrl = await generateUserQRCode(userId);
+
     const newUser = await prisma.user.create({
       data: {
         userId,
@@ -206,7 +229,8 @@ router.post('/', userOperationsLimiter, authenticateToken, authorizeRoles('ADMIN
         contactNumber,
         gender,
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-        status
+        status,
+        avatar: qrCodeUrl
       },
       select: {
         id: true,
@@ -219,6 +243,7 @@ router.post('/', userOperationsLimiter, authenticateToken, authorizeRoles('ADMIN
         gender: true,
         dateOfBirth: true,
         status: true,
+        avatar: true,
         createdAt: true
       }
     });

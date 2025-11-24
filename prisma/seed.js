@@ -1,7 +1,28 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import QRCode from 'qrcode';
+import { promises as fs } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const prisma = new PrismaClient();
+
+async function generateUserQRCode(userId) {
+  const qrDir = path.join(__dirname, '..', 'uploads', 'qrcodes');
+  await fs.mkdir(qrDir, { recursive: true });
+
+  const qrPath = path.join(qrDir, `${userId}.png`);
+  await QRCode.toFile(qrPath, userId, {
+    width: 300,
+    margin: 2,
+    errorCorrectionLevel: 'H'
+  });
+
+  return `/qrcodes/${userId}.png`;
+}
 
 async function main() {
   console.log('Starting the seeding process...');
@@ -19,20 +40,19 @@ async function main() {
   const adminPassword = await bcrypt.hash('admin123', 10);
   const defaultPassword = await bcrypt.hash('password123', 10);
 
-  const users = await prisma.user.createMany({
-    data: [
-      {
-        userId: 'ADMIN001',
-        name: 'Admin User',
-        department: 'Administration',
-        email: 'admin@pup.edu.ph',
-        password: adminPassword,
-        role: 'ADMIN',
-        status: 'ACTIVE',
-        gender: 'Male',
-        contactNumber: '+63 917 123 4567',
-        dateOfBirth: new Date('1985-06-15')
-      },
+  const userDataList = [
+    {
+      userId: 'ADMIN001',
+      name: 'Admin User',
+      department: 'Administration',
+      email: 'admin@pup.edu.ph',
+      password: adminPassword,
+      role: 'ADMIN',
+      status: 'ACTIVE',
+      gender: 'Male',
+      contactNumber: '+63 917 123 4567',
+      dateOfBirth: new Date('1985-06-15')
+    },
       {
         userId: 'PUP001',
         password: defaultPassword,
@@ -93,21 +113,31 @@ async function main() {
         contactNumber: '+63 917 678 9012',
         dateOfBirth: new Date('1990-11-25')
       },
-      {
-        userId: 'USER003',
-        password: defaultPassword,
-        name: 'Bob Wilson',
-        department: 'Computer Engineering',
-        email: 'bob.wilson@pup.edu.ph',
-        role: 'STUDENT',
-        status: 'ACTIVE',
-        gender: 'Male',
-        contactNumber: '+63 917 789 0123',
-        dateOfBirth: new Date('2003-01-07')
+    {
+      userId: 'USER003',
+      password: defaultPassword,
+      name: 'Bob Wilson',
+      department: 'Computer Engineering',
+      email: 'bob.wilson@pup.edu.ph',
+      role: 'STUDENT',
+      status: 'ACTIVE',
+      gender: 'Male',
+      contactNumber: '+63 917 789 0123',
+      dateOfBirth: new Date('2003-01-07')
+    }
+  ];
+
+  for (const userData of userDataList) {
+    const qrCodeUrl = await generateUserQRCode(userData.userId);
+    await prisma.user.create({
+      data: {
+        ...userData,
+        avatar: qrCodeUrl
       }
-    ],
-    skipDuplicates: true
-  });
+    });
+  }
+
+  const users = { count: userDataList.length };
 
   const categories = await prisma.category.createMany({
     data: [
