@@ -48,8 +48,17 @@ app.use('/api/qr', qrRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/door', doorRoutes);
 
-app.use('/seed-files', express.static(join(__dirname, 'uploads/seed-files')));
-app.use('/qrcodes', express.static(join(__dirname, 'uploads/qrcodes')));
+app.use('/seed-files', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  next();
+}, express.static(join(__dirname, 'uploads/seed-files')));
+
+app.use('/qrcodes', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  next();
+}, express.static(join(__dirname, 'uploads/qrcodes')));
 
 app.get('/api/health', (req, res) => {
   res.json({
