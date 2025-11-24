@@ -20,9 +20,9 @@ router.post("/unlock", async (req, res) => {
 
     const result = await esp32Controller.unlockDoor(row, column);
 
-    if (userId) {
-      await logAccess(userId, null, "manual_unlock", row, column, true);
-    }
+    // if (userId) {
+    //   await logAccess(userId, null, "manual_unlock", row, column, true);
+    // }
 
     res.json({
       success: true,
@@ -40,7 +40,6 @@ router.post("/unlock", async (req, res) => {
     if (userId) {
       await logAccess(userId, null, "auto_lock", row, column, true);
     }
-
   } catch (error) {
     console.error("Manual unlock error:", error);
 
@@ -70,9 +69,9 @@ router.post("/lock", async (req, res) => {
 
     const result = await esp32Controller.lockDoor(row, column);
 
-    if (userId) {
-      await logAccess(userId, null, "manual_lock", row, column, true);
-    }
+    // if (userId) {
+    //   await logAccess(userId, null, "manual_lock", row, column, true);
+    // }
 
     res.json({
       success: true,

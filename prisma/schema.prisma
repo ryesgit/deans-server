@@ -29,6 +29,7 @@ enum UserStatus {
 model User {
   id            Int           @id @default(autoincrement())
   userId        String        @unique @map("user_id")
+  idNumber      String?       @map("id_number")
   name          String
   email         String?       @unique
   password      String?
@@ -42,7 +43,7 @@ model User {
   lastLogin     DateTime?     @map("last_login")
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime?     @updatedAt @map("updated_at")
-  
+
   files         File[]
   transactions  Transaction[]
   requests      Request[]

@@ -30,10 +30,10 @@ KEY_MAPPINGS = {
 
 def send_user_id(user_id: str) -> Optional[dict]:
     try:
-        print(f"Sending user ID: {user_id}")
+        print(f"Sending user ID: {user_id.upper()}")
         response = requests.post(
             SERVER_URL,
-            json={"userId": user_id},
+            json={"userId": user_id.upper()},
             headers={"Content-Type": "application/json"},
             timeout=10
         )
