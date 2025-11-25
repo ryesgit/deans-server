@@ -80,7 +80,7 @@ router.get('/dashboard', readLimiter, authenticateToken, async (req, res) => {
             select: { filename: true }
           },
           user: {
-            select: { name: true, department: true }
+            select: { name: true, department: true, avatar: true }
           }
         },
         orderBy: { timestamp: 'desc' },
@@ -235,6 +235,7 @@ router.get('/dashboard', readLimiter, authenticateToken, async (req, res) => {
         filename: t.file?.filename,
         userName: t.user?.name,
         department: t.user?.department,
+        avatar: t.user?.avatar,
         timestamp: t.timestamp,
         notes: t.notes
       })),
@@ -282,7 +283,7 @@ router.get('/activity-log', readLimiter, authenticateToken, async (req, res) => 
           select: { filename: true }
         },
         user: {
-          select: { name: true, department: true }
+          select: { name: true, department: true, avatar: true }
         }
       },
       orderBy: { timestamp: 'desc' },
@@ -297,6 +298,7 @@ router.get('/activity-log', readLimiter, authenticateToken, async (req, res) => 
         filename: t.file?.filename,
         userName: t.user?.name,
         department: t.user?.department,
+        avatar: t.user?.avatar,
         timestamp: t.timestamp,
         notes: t.notes
       }))
