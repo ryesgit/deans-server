@@ -233,8 +233,8 @@ export const getUserFiles = async (userId) => {
       status: file.status,
       created_at: file.createdAt.toISOString(),
       accessed_at: file.accessedAt?.toISOString() || null,
-      name: file.user.name,
-      department: file.user.department
+      name: file.user?.name || 'Unknown',
+      department: file.user?.department || 'Unknown'
     }));
   } catch (error) {
     console.error('getUserFiles error:', error);
@@ -358,8 +358,8 @@ export const getFileLocation = async (userId, filename = null) => {
       shelf_number: file.shelfNumber,
       created_at: file.createdAt.toISOString(),
       accessed_at: file.accessedAt?.toISOString() || null,
-      name: file.user.name,
-      department: file.user.department
+      name: file.user?.name || 'Unknown',
+      department: file.user?.department || 'Unknown'
     };
   } catch (error) {
     console.error('getFileLocation error:', error);
@@ -425,6 +425,28 @@ export const updateFileAccess = async (fileId) => {
 
 export const getAllFiles = async () => {
   try {
+    const files = await prisma.file.findMany({
+      include: {
+        user: {
+          select: {
+            name: true,
+            department: true,
+            email: true
+          }
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            description: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
     return files.map(file => ({
       id: file.id,
       user_id: file.userId,
@@ -435,9 +457,9 @@ export const getAllFiles = async () => {
       shelf_number: file.shelfNumber,
       created_at: file.createdAt.toISOString(),
       accessed_at: file.accessedAt?.toISOString() || null,
-      name: file.user.name,
-      department: file.user.department,
-      email: file.user.email,
+      name: file.user?.name || 'Unknown',
+      department: file.user?.department || 'Unknown',
+      email: file.user?.email || 'Unknown',
       category: file.category?.name || null,
       categoryId: file.categoryId
     }));
@@ -518,9 +540,9 @@ export const searchFiles = async (query, userId = null) => {
       status: file.status,
       created_at: file.createdAt.toISOString(),
       accessed_at: file.accessedAt?.toISOString() || null,
-      name: file.user.name,
-      department: file.user.department,
-      email: file.user.email,
+      name: file.user?.name || 'Unknown',
+      department: file.user?.department || 'Unknown',
+      email: file.user?.email || 'Unknown',
       category: file.category?.name || null,
       categoryId: file.categoryId
     }));
@@ -551,6 +573,7 @@ export const returnFile = async (userId, fileId) => {
       where: { id: fileId },
       data: {
         status: 'AVAILABLE',
+        userId: null, // Nullify user ID on return
         updatedAt: new Date()
       }
     });

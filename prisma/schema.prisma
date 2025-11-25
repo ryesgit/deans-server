@@ -89,7 +89,7 @@ model Category {
 
 model File {
   id             Int        @id @default(autoincrement())
-  userId         String     @map("user_id")
+  userId         String?    @map("user_id")
   filename       String
   filePath       String?    @map("file_path")
   fileUrl        String?    @map("file_url")
@@ -102,7 +102,7 @@ model File {
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime?  @updatedAt @map("updated_at")
   
-  user         User          @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  user         User?         @relation(fields: [userId], references: [userId], onDelete: SetNull)
   category     Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   transactions Transaction[]
 

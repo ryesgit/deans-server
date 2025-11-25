@@ -6,7 +6,7 @@ import json
 import sys
 from typing import Optional
 
-SCANNER_DEVICE = "/dev/input/event15"
+SCANNER_DEVICE = "/dev/input/event6"
 SERVER_URL = "http://localhost:3001/api/qr/scan"
 
 KEY_MAPPINGS = {

@@ -87,17 +87,25 @@ router.post('/upload', uploadLimiter, authenticateToken, upload.single('file'), 
       req.file.path
     );
 
+    const uploadedFile = await prisma.file.findUnique({
+      where: { id: result.fileId },
+      include: {
+        category: {
+          select: { id: true, name: true, description: true }
+        },
+        user: {
+          select: { name: true, department: true, email: true }
+        }
+      }
+    });
+
+    if (!uploadedFile) {
+      throw new Error('Failed to retrieve uploaded file from database');
+    }
+
     res.status(201).json({
       message: 'File uploaded successfully',
-      fileId: result.fileId,
-      file: {
-        userId: targetUserId,
-        filename: finalFilename,
-        fileUrl,
-        fileType: finalFileType,
-        size: req.file.size,
-        uploadedAt: new Date().toISOString()
-      }
+      file: uploadedFile
     });
 
   } catch (error) {
@@ -164,51 +172,6 @@ router.get('/download/:id', readLimiter, async (req, res) => {
   }
 });
 
-// Download file endpoint
-router.get('/download/:filename', readLimiter, async (req, res) => {
-  try {
-    const { filename } = req.params;
-    const uploadDir = process.env.UPLOAD_DIR || './uploads';
-    const filePath = path.join(uploadDir, filename);
-
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({
-        error: 'File not found',
-        message: 'The requested file does not exist'
-      });
-    }
-
-    // Get file info from database to check permissions
-    const file = await prisma.file.findFirst({
-      where: {
-        fileUrl: {
-          contains: filename
-        }
-      }
-    });
-
-    // Send file
-    res.download(filePath, file ? file.filename : filename, (err) => {
-      if (err) {
-        console.error('File download error:', err);
-        if (!res.headersSent) {
-          res.status(500).json({
-            error: 'Failed to download file',
-            message: err.message
-          });
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('File download error:', error);
-    res.status(500).json({
-      error: 'Failed to download file',
-      message: error.message
-    });
-  }
-});
 
 router.get('/user/:userId', async (req, res) => {
   try {

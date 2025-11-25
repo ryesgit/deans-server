@@ -58,7 +58,10 @@ router.post('/scan', async (req, res) => {
         if (isReturn) {
           await prisma.file.update({
             where: { id: file.id },
-            data: { status: 'AVAILABLE' }
+            data: { 
+              status: 'AVAILABLE',
+              userId: null // Nullify user ID on return
+            }
           });
           await logAccess(userId, file.id, 'return', rowPosition, columnPosition, true);
           console.log(`📥 File ${filename} returned and set to AVAILABLE`);
