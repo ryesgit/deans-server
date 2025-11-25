@@ -1,0 +1,112 @@
+Test ID,Test Suite,Test Name,Endpoint,Input Data,Expected Output,Category,Status,Date Executed,Module,Test File
+TC-AUTH-001,Authentication API,should register a new user with all fields,POST /api/auth/register,"userId, password, name, department, email",201 + success message + user data,Successful Registration,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-002,Authentication API,should register a user with only required fields,POST /api/auth/register,"userId, password, name",201 + success message,Successful Registration,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-003,Authentication API,should hash the password before storing,POST /api/auth/register,password (plaintext),bcrypt hashed password (not plaintext),Security,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-004,Authentication API,should return 400 when userId is missing,POST /api/auth/register,missing userId field,400 + missing userId error,Validation Errors,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-005,Authentication API,should return 400 when password is missing,POST /api/auth/register,missing password field,400 + missing password error,Validation Errors,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-006,Authentication API,should return 400 when name is missing,POST /api/auth/register,missing name field,400 + missing name error,Validation Errors,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-007,Authentication API,should return 400 when all required fields are missing,POST /api/auth/register,all fields missing,400 + error message,Validation Errors,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-008,Authentication API,should return 409 when userId already exists,POST /api/auth/register,duplicate userId,409 + user already exists error,Duplicate User Errors,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-009,Authentication API,should return 500 when database create fails,POST /api/auth/register,valid data (DB fails),500 + registration failed error,Database Errors,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-010,Authentication API,should login with valid credentials,POST /api/auth/login,"userId: PUP001, password: password123",200 + user data + token (no password field),Successful Login,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-011,Authentication API,should not expose password in response,POST /api/auth/login,valid credentials,user object without password field,Security,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-012,Authentication API,should return 400 when userId is missing,POST /api/auth/login,missing userId,400 + Identifier required error,Validation Errors,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-013,Authentication API,should return 400 when password is missing,POST /api/auth/login,missing password,400 + Password required error,Validation Errors,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-014,Authentication API,should return 400 when both fields are missing,POST /api/auth/login,missing both userId and password,400 + missing credentials error,Validation Errors,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-015,Authentication API,should return 401 when user does not exist,POST /api/auth/login,nonexistent userId,401 + Invalid credentials error,Authentication Errors,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-016,Authentication API,should return 401 when password is incorrect,POST /api/auth/login,userId with wrong password,401 + Invalid credentials error,Authentication Errors,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-017,Authentication API,should not reveal whether user exists or password is wrong,POST /api/auth/login,nonexistent user vs wrong password,same generic error for both cases,Security,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-018,Authentication API,should return 500 when database query fails,POST /api/auth/login,valid credentials (DB fails),500 + Login failed error,Database Errors,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-019,Authentication API,should verify existing user,GET /api/auth/verify/PUP001,valid existing userId,200 + user data (no password),Successful Verification,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-020,Authentication API,should not expose password in verification response,GET /api/auth/verify/:userId,valid userId,user object without password field,Security,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-021,Authentication API,should return 404 when user does not exist,GET /api/auth/verify/:userId,nonexistent userId,404 + User not found error,User Not Found,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-022,Authentication API,should return 500 when database query fails,GET /api/auth/verify/:userId,valid userId (DB fails),500 + Verification failed error,Database Errors,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-023,Authentication API,should register and then login,POST /api/auth/register + POST /api/auth/login,new user credentials,successful registration then login with token,Integration,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-AUTH-024,Authentication API,should verify user after registration,POST /api/auth/register + GET /api/auth/verify,new user credentials,user created and verified successfully,Integration,PASS,25/11/2025,Auth,tests/auth/auth.test.js
+TC-FILE-001,File Management API,should get user files,GET /api/files/:userId,valid userId,200 + array of user files,Successful Operation,PASS,25/11/2025,Files,tests/files/files.test.js
+TC-FILE-002,File Management API,should handle missing userId in get files,GET /api/files/:userId,missing userId,400 + error message,Validation Error,PASS,25/11/2025,Files,tests/files/files.test.js
+TC-FILE-003,File Management API,should get all files,GET /api/files,no parameters,200 + array of all files,Successful Operation,PASS,25/11/2025,Files,tests/files/files.test.js
+TC-FILE-004,File Management API,should search files,GET /api/files/search?query=test,search query parameter,200 + filtered file results,Search Operation,PASS,25/11/2025,Files,tests/files/files.test.js
+TC-FILE-005,File Management API,should handle search with no results,GET /api/files/search?query=xyz,search query with no matches,200 + empty array,Search Operation,PASS,25/11/2025,Files,tests/files/files.test.js
+TC-FILE-006,File Management API,should add file,POST /api/files,"name, path, category",201 + created file object,Successful Operation,PASS,25/11/2025,Files,tests/files/files.test.js
+TC-FILE-007,File Management API,should handle invalid file data,POST /api/files,missing required fields,400 + validation error,Validation Error,PASS,25/11/2025,Files,tests/files/files.test.js
+TC-FILE-008,File Management API,should return file,POST /api/files/return,"fileId, userId",200 + file status updated,Successful Operation,PASS,25/11/2025,Files,tests/files/files.test.js
+TC-FILE-009,File Management API,should handle file not found for return,POST /api/files/return,nonexistent fileId,404 + File not found error,File Not Found,PASS,25/11/2025,Files,tests/files/files.test.js
+TC-FILE-010,File Management API,should handle database error on get files,GET /api/files/:userId,valid userId (DB fails),500 + error message,Database Error,PASS,25/11/2025,Files,tests/files/files.test.js
+TC-FILE-011,File Management API,should handle database error on add file,POST /api/files,valid data (DB fails),500 + error message,Database Error,PASS,25/11/2025,Files,tests/files/files.test.js
+TC-FILE-012,File Management API,should handle database error on return file,POST /api/files/return,valid data (DB fails),500 + error message,Database Error,PASS,25/11/2025,Files,tests/files/files.test.js
+TC-FILE-013,File Management API,should retrieve file with correct status,POST /api/files/retrieve,fileId,200 + file with RETRIEVED status,Successful Operation,PASS,25/11/2025,Files,tests/files/files.test.js
+TC-FILE-014,File Management API,should handle missing file on retrieve,POST /api/files/retrieve,nonexistent fileId,404 + File not found,File Not Found,PASS,25/11/2025,Files,tests/files/files.test.js
+TC-FILE-015,File Management API,should handle database error on retrieve,POST /api/files/retrieve,valid data (DB fails),500 + error message,Database Error,PASS,25/11/2025,Files,tests/files/files.test.js
+TC-QR-001,QR Processing API,should process QR scan for existing user,POST /api/qr/scan,valid userId,200 + scan processed successfully,Successful Operation,PASS,25/11/2025,QR,tests/qr/qrScan.test.js
+TC-QR-002,QR Processing API,should handle QR scan for non-existent user,POST /api/qr/scan,nonexistent userId,404 + User not found error,User Not Found,PASS,25/11/2025,QR,tests/qr/qrScan.test.js
+TC-QR-003,QR Processing API,should handle QR scan with database error,POST /api/qr/scan,valid userId (DB fails),500 + error message,Database Error,PASS,25/11/2025,QR,tests/qr/qrScan.test.js
+TC-QR-004,QR Processing API,should get available files for user,POST /api/qr/available,userId,200 + array of available files,Successful Operation,PASS,25/11/2025,QR,tests/qr/qrScan.test.js
+TC-QR-005,QR Processing API,should handle no available files,POST /api/qr/available,userId with no files,200 + empty array,No Results,PASS,25/11/2025,QR,tests/qr/qrScan.test.js
+TC-QR-006,QR Processing API,should handle database error on available files,POST /api/qr/available,userId (DB fails),500 + error message,Database Error,PASS,25/11/2025,QR,tests/qr/qrScan.test.js
+TC-QR-007,QR Processing API,should log access,POST /api/qr/log,"userId, fileId, timestamp",200 + access logged,Successful Operation,PASS,25/11/2025,QR,tests/qr/qrScan.test.js
+TC-QR-008,QR Processing API,should handle missing data on log access,POST /api/qr/log,missing required fields,400 + validation error,Validation Error,PASS,25/11/2025,QR,tests/qr/qrScan.test.js
+TC-QR-009,QR Processing API,should handle database error on log access,POST /api/qr/log,valid data (DB fails),500 + error message,Database Error,PASS,25/11/2025,QR,tests/qr/qrScan.test.js
+TC-QR-010,QR Processing API,should update file access,POST /api/qr/update-access,"fileId, status",200 + access updated,Successful Operation,PASS,25/11/2025,QR,tests/qr/qrScan.test.js
+TC-QR-011,QR Processing API,should handle invalid data on update access,POST /api/qr/update-access,invalid data,400 + validation error,Validation Error,PASS,25/11/2025,QR,tests/qr/qrScan.test.js
+TC-QR-012,QR Processing API,should handle database error on update access,POST /api/qr/update-access,valid data (DB fails),500 + error message,Database Error,PASS,25/11/2025,QR,tests/qr/qrScan.test.js
+TC-QR-013,QR Processing API,should retrieve user files for QR,POST /api/qr/retrieve,userId,200 + user files retrieved,Successful Operation,PASS,25/11/2025,QR,tests/qr/qrScan.test.js
+TC-QR-014,QR Processing API,should handle database error on retrieve,POST /api/qr/retrieve,userId (DB fails),500 + error message,Database Error,PASS,25/11/2025,QR,tests/qr/qrScan.test.js
+TC-DOOR-001,Door Control API,should unlock door manually,POST /api/door/unlock,"row, column",200 + unlock triggered,Successful Operation,PASS,25/11/2025,Door,tests/door/door.test.js
+TC-DOOR-002,Door Control API,should lock door manually,POST /api/door/lock,"row, column",200 + lock engaged,Successful Operation,PASS,25/11/2025,Door,tests/door/door.test.js
+TC-DOOR-003,Door Control API,should log access when userId provided,POST /api/door/unlock,"row, column, userId",200 + unlock + transaction logged,Logging,PASS,25/11/2025,Door,tests/door/door.test.js
+TC-DOOR-004,Door Control API,should handle missing row coordinate,POST /api/door/unlock,missing row,400 + missing row error,Validation Error,PASS,25/11/2025,Door,tests/door/door.test.js
+TC-DOOR-005,Door Control API,should handle missing column coordinate,POST /api/door/unlock,missing column,400 + missing column error,Validation Error,PASS,25/11/2025,Door,tests/door/door.test.js
+TC-DOOR-006,Door Control API,should handle database error on unlock,POST /api/door/unlock,valid data (DB fails),500 + error message,Database Error,PASS,25/11/2025,Door,tests/door/door.test.js
+TC-DOOR-007,Door Control API,should handle database error on lock,POST /api/door/lock,valid data (DB fails),500 + error message,Database Error,PASS,25/11/2025,Door,tests/door/door.test.js
+TC-ESP-001,ESP32 Controller,should initialize ESP32 controller in simulation mode,Constructor,simulation mode enabled,initialized in simulation mode,Initialization,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-002,ESP32 Controller,should initialize ESP32 controller as connected,Constructor,IP and port provided,initialized as connected,Initialization,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-003,ESP32 Controller,should simulate unlock operation,POST /unlock,simulated unlock,200 + unlock simulated,Simulation,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-004,ESP32 Controller,should simulate lock operation,POST /lock,simulated lock,200 + lock simulated,Simulation,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-005,ESP32 Controller,should return disconnected status on init error,GET /status,initialization fails,status: disconnected,Error Handling,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-006,ESP32 Controller,should successfully unlock when connected,POST /unlock,connected to ESP32,200 + unlock confirmed,Connected Mode,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-007,ESP32 Controller,should successfully lock when connected,POST /lock,connected to ESP32,200 + lock confirmed,Connected Mode,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-008,ESP32 Controller,should retrieve ESP32 status,GET /status,connected state,200 + status: connected,Connected Mode,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-009,ESP32 Controller,should perform health check,GET /health,connected state,200 + health check passed,Health Check,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-010,ESP32 Controller,should handle connection refused error,POST /unlock,connection refused,error response + marked disconnected,Error Handling,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-011,ESP32 Controller,should handle timeout error,POST /unlock,operation timeout,error response + marked disconnected,Error Handling,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-012,ESP32 Controller,should handle response error,POST /unlock,ESP32 returns error,error response + marked disconnected,Error Handling,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-013,ESP32 Controller,should mark as disconnected on failure,POST /unlock,operation fails,status set to disconnected,Error Handling,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-014,ESP32 Controller,should handle lock operation failure,POST /lock,lock operation fails,500 + error message,Error Handling,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-015,ESP32 Controller,should handle database error on lock,POST /lock,valid operation (DB fails),500 + database error,Error Handling,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-016,ESP32 Controller,should update ESP32 configuration,PUT /config,"IP address, port",200 + config updated,Configuration,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-017,ESP32 Controller,should use default port when not specified,Constructor,IP only (no port),port defaults to 8080,Configuration,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-018,ESP32 Controller,should validate IP address format,PUT /config,invalid IP format,400 + IP format error,Configuration,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-019,ESP32 Controller,should persist configuration updates,PUT /config,new IP and port,200 + new config persisted,Configuration,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-020,ESP32 Controller,should handle configuration error,PUT /config,invalid config,400 + config error,Error Handling,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-021,ESP32 Controller,should handle reset operation,POST /reset,reset command,200 + reset executed,Connected Mode,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-022,ESP32 Controller,should handle batch unlock operation,POST /batch-unlock,multiple locks,200 + all unlocked,Connected Mode,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-023,ESP32 Controller,should handle batch lock operation,POST /batch-lock,multiple locks,200 + all locked,Connected Mode,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-024,ESP32 Controller,should log all operations,POST /unlock,unlock operation,200 + operation logged,Logging,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-025,ESP32 Controller,should validate operation parameters,POST /unlock,invalid parameters,400 + validation error,Validation,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-026,ESP32 Controller,should handle concurrent operations,POST /unlock,concurrent requests,200 + all processed correctly,Concurrency,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-027,ESP32 Controller,should retrieve lock status,GET /lock-status,no parameters,200 + lock status returned,Connected Mode,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-028,ESP32 Controller,should detect hardware disconnection,GET /status,hardware disconnected,status: disconnected,Error Handling,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-029,ESP32 Controller,should auto-reconnect on recovery,POST /unlock,device recovers,200 + reconnected + operation completed,Recovery,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-030,ESP32 Controller,should handle malformed responses,POST /unlock,malformed response from ESP32,error response + marked disconnected,Error Handling,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-ESP-031,ESP32 Controller,should enforce operation timeouts,POST /unlock,timeout reached,error response + timeout handled,Timeout Handling,PASS,25/11/2025,ESP32,tests/door/esp32Controller.test.js
+TC-DB-001,Database API,should check if user exists,GET /db/user/:userId,valid userId,200 + boolean result,Successful Operation,PASS,25/11/2025,Database,tests/db/prisma.test.js
+TC-DB-002,Database API,should handle missing user in exists check,GET /db/user/:userId,nonexistent userId,false or 404,User Not Found,PASS,25/11/2025,Database,tests/db/prisma.test.js
+TC-DB-003,Database API,should handle database error in exists check,GET /db/user/:userId,valid userId (DB fails),500 + error message,Database Error,PASS,25/11/2025,Database,tests/db/prisma.test.js
+TC-DB-004,Database API,should get file location,GET /db/file/:fileId,valid fileId,200 + file location data,Successful Operation,PASS,25/11/2025,Database,tests/db/prisma.test.js
+TC-DB-005,Database API,should handle missing file location,GET /db/file/:fileId,nonexistent fileId,404 + file not found,File Not Found,PASS,25/11/2025,Database,tests/db/prisma.test.js
+TC-DB-006,Database API,should get user files,GET /db/files/:userId,valid userId,200 + array of user files,Successful Operation,PASS,25/11/2025,Database,tests/db/prisma.test.js
+TC-DB-007,Database API,should handle no user files,GET /db/files/:userId,userId with no files,200 + empty array,No Results,PASS,25/11/2025,Database,tests/db/prisma.test.js
+TC-DB-008,Database API,should add file to database,POST /db/file,"name, path, userId",201 + created file,Successful Operation,PASS,25/11/2025,Database,tests/db/prisma.test.js
+TC-DB-009,Database API,should handle file add error,POST /db/file,valid data (DB fails),500 + error message,Database Error,PASS,25/11/2025,Database,tests/db/prisma.test.js
+TC-DB-010,Database API,should retrieve file metadata,GET /db/file/:fileId/metadata,valid fileId,200 + file metadata,Successful Operation,PASS,25/11/2025,Database,tests/db/prisma.test.js
+TC-DB-011,Database API,should log retrieval operation,POST /db/log/retrieval,"userId, fileId, timestamp",200 + retrieval logged,Logging,PASS,25/11/2025,Database,tests/db/prisma.test.js
+TC-DB-012,Database API,should log failed operation,POST /db/log/failed,"userId, reason, timestamp",200 + failure logged,Logging,PASS,25/11/2025,Database,tests/db/prisma.test.js
+TC-DB-013,Database API,should log return operation,POST /db/log/return,"userId, fileId, timestamp",200 + return logged,Logging,PASS,25/11/2025,Database,tests/db/prisma.test.js
+TC-DB-014,Database API,should record transaction,POST /db/transaction,"userId, action, details",200 + transaction recorded,Transaction,PASS,25/11/2025,Database,tests/db/prisma.test.js
+TC-DB-015,Database API,should handle transaction error,POST /db/transaction,valid data (DB fails),500 + error message,Error Handling,PASS,25/11/2025,Database,tests/db/prisma.test.js
+TC-DB-016,Database API,should update file to RETRIEVED status,PUT /db/file/:fileId/status,fileId + status RETRIEVED,200 + status updated,Successful Operation,PASS,25/11/2025,Database,tests/db/prisma.test.js
+TC-DB-017,Database API,should update file access timestamp,PUT /db/file/:fileId/access-time,fileId + current timestamp,200 + timestamp updated,Successful Operation,PASS,25/11/2025,Database,tests/db/prisma.test.js
+TC-DB-018,Database API,should update multiple files atomically,PUT /db/files/batch-update,array of fileIds + updates,200 + all files updated atomically,Batch Operation,PASS,25/11/2025,Database,tests/db/prisma.test.js
+TC-DB-019,Database API,should handle batch update error,PUT /db/files/batch-update,valid data (DB fails),500 + error message + rollback,Error Handling,PASS,25/11/2025,Database,tests/db/prisma.test.js
+TC-DB-020,Database API,should cleanup old transactions,DELETE /db/transactions/cleanup,date threshold,200 + old transactions deleted,Maintenance,PASS,25/11/2025,Database,tests/db/prisma.test.js

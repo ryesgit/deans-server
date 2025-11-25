@@ -2,7 +2,39 @@ import { jest } from '@jest/globals';
 import request from 'supertest';
 import express from 'express';
 import { mockUsers, mockFiles } from '../utils/prismaMock.js';
-import * as prismaClient from '../../prismaClient.js';
+
+// Create mock functions for prismaClient module
+const mockCheckUserExists = jest.fn();
+const mockGetAvailableFilesForUser = jest.fn();
+const mockGetFileLocation = jest.fn();
+const mockLogAccess = jest.fn();
+const mockUpdateFileAccess = jest.fn();
+const mockGetAccessLogs = jest.fn();
+const mockAddFile = jest.fn();
+const mockGetUserFiles = jest.fn();
+const mockGetAllFiles = jest.fn();
+const mockSearchFiles = jest.fn();
+const mockReturnFile = jest.fn();
+
+// Mock prismaClient module BEFORE any routes are imported
+jest.unstable_mockModule('../../prismaClient.js', () => ({
+  initializeDatabase: jest.fn(),
+  checkUserExists: mockCheckUserExists,
+  getAvailableFilesForUser: mockGetAvailableFilesForUser,
+  getFileLocation: mockGetFileLocation,
+  logAccess: mockLogAccess,
+  updateFileAccess: mockUpdateFileAccess,
+  getAccessLogs: mockGetAccessLogs,
+  addFile: mockAddFile,
+  getUserFiles: mockGetUserFiles,
+  getAllFiles: mockGetAllFiles,
+  searchFiles: mockSearchFiles,
+  returnFile: mockReturnFile,
+  prisma: {
+    $connect: jest.fn(),
+    $disconnect: jest.fn(),
+  },
+}));
 
 // Create test app
 const createTestApp = async () => {
@@ -33,13 +65,13 @@ describe('File Management Endpoints', () => {
   });
 
   beforeEach(() => {
-    jest.restoreAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('GET /api/files/user/:userId', () => {
     test('should fetch all files for a valid user', async () => {
       const userFiles = mockFiles.filter(f => f.userId === 'PUP001');
-      const getUserFilesSpy = jest.spyOn(prismaClient, 'getUserFiles').mockResolvedValue(userFiles);
+      mockGetUserFiles.mockResolvedValue(userFiles);
 
       const response = await request(app)
         .get('/api/files/user/PUP001')
@@ -52,7 +84,7 @@ describe('File Management Endpoints', () => {
     });
 
     test('should return 404 when user has no files', async () => {
-      const getUserFilesSpy = jest.spyOn(prismaClient, 'getUserFiles').mockResolvedValue([]);
+      mockGetUserFiles.mockResolvedValue([]);
 
       const response = await request(app)
         .get('/api/files/user/NOFILES')
@@ -64,7 +96,7 @@ describe('File Management Endpoints', () => {
     });
 
     test('should return 500 on database error', async () => {
-      const getUserFilesSpy = jest.spyOn(prismaClient, 'getUserFiles').mockRejectedValue(new Error('DB Error'));
+      mockGetUserFiles.mockRejectedValue(new Error('DB Error'));
 
       const response = await request(app)
         .get('/api/files/user/PUP001')
@@ -76,7 +108,7 @@ describe('File Management Endpoints', () => {
 
   describe('GET /api/files/all', () => {
     test('should fetch all files in the system', async () => {
-      const getAllFilesSpy = jest.spyOn(prismaClient, 'getAllFiles').mockResolvedValue(mockFiles);
+      mockGetAllFiles.mockResolvedValue(mockFiles);
 
       const response = await request(app)
         .get('/api/files/all')
@@ -88,7 +120,7 @@ describe('File Management Endpoints', () => {
     });
 
     test('should return empty array when no files exist', async () => {
-      const getAllFilesSpy = jest.spyOn(prismaClient, 'getAllFiles').mockResolvedValue([]);
+      mockGetAllFiles.mockResolvedValue([]);
 
       const response = await request(app)
         .get('/api/files/all')
@@ -99,7 +131,7 @@ describe('File Management Endpoints', () => {
     });
 
     test('should return 500 on database error', async () => {
-      const getAllFilesSpy = jest.spyOn(prismaClient, 'getAllFiles').mockRejectedValue(new Error('DB Error'));
+      mockGetAllFiles.mockRejectedValue(new Error('DB Error'));
 
       const response = await request(app)
         .get('/api/files/all')
@@ -112,7 +144,7 @@ describe('File Management Endpoints', () => {
   describe('GET /api/files/search', () => {
     test('should return filtered files matching query', async () => {
       const searchResults = [mockFiles[0]]; // Engineering files
-      const searchFilesSpy = jest.spyOn(prismaClient, 'searchFiles').mockResolvedValue(searchResults);
+      mockSearchFiles.mockResolvedValue(searchResults);
 
       const response = await request(app)
         .get('/api/files/search?q=Engineering')
@@ -134,7 +166,7 @@ describe('File Management Endpoints', () => {
 
     test('should search by userId when provided', async () => {
       const userFiles = mockFiles.filter(f => f.userId === 'PUP001');
-      const searchFilesSpy = jest.spyOn(prismaClient, 'searchFiles').mockResolvedValue(userFiles);
+      mockSearchFiles.mockResolvedValue(userFiles);
 
       const response = await request(app)
         .get('/api/files/search?q=Thesis&userId=PUP001')
@@ -144,7 +176,7 @@ describe('File Management Endpoints', () => {
     });
 
     test('should return empty results when no matches found', async () => {
-      const searchFilesSpy = jest.spyOn(prismaClient, 'searchFiles').mockResolvedValue([]);
+      mockSearchFiles.mockResolvedValue([]);
 
       const response = await request(app)
         .get('/api/files/search?q=NonExistent')
@@ -155,7 +187,7 @@ describe('File Management Endpoints', () => {
     });
 
     test('should return 500 on database error', async () => {
-      const searchFilesSpy = jest.spyOn(prismaClient, 'searchFiles').mockRejectedValue(new Error('Search failed'));
+      mockSearchFiles.mockRejectedValue(new Error('Search failed'));
 
       const response = await request(app)
         .get('/api/files/search?q=test')
@@ -170,7 +202,7 @@ describe('File Management Endpoints', () => {
       const newFile = {
         id: 99,
       };
-      const addFileSpy = jest.spyOn(prismaClient, 'addFile').mockResolvedValue({ fileId: newFile.id });
+      mockAddFile.mockResolvedValue({ fileId: newFile.id });
 
       const response = await request(app)
         .post('/api/files/add')
@@ -188,7 +220,7 @@ describe('File Management Endpoints', () => {
     });
 
     test('should use default shelf number when not provided', async () => {
-      const addFileSpy = jest.spyOn(prismaClient, 'addFile').mockResolvedValue({ fileId: 100 });
+      mockAddFile.mockResolvedValue({ fileId: 100 });
 
       const response = await request(app)
         .post('/api/files/add')
@@ -256,7 +288,7 @@ describe('File Management Endpoints', () => {
     });
 
     test('should return 500 on database error', async () => {
-      const addFileSpy = jest.spyOn(prismaClient, 'addFile').mockRejectedValue(new Error('DB Error'));
+      mockAddFile.mockRejectedValue(new Error('DB Error'));
 
       const response = await request(app)
         .post('/api/files/add')
@@ -274,7 +306,7 @@ describe('File Management Endpoints', () => {
 
   describe('POST /api/files/return', () => {
     test('should return file successfully', async () => {
-      const returnFileSpy = jest.spyOn(prismaClient, 'returnFile').mockResolvedValue({ success: true, fileId: 4 });
+      mockReturnFile.mockResolvedValue({ success: true, fileId: 4 });
 
       const response = await request(app)
         .post('/api/files/return')
@@ -291,7 +323,7 @@ describe('File Management Endpoints', () => {
     });
 
     test('should return 400 when file not found or not retrieved', async () => {
-      const returnFileSpy = jest.spyOn(prismaClient, 'returnFile').mockResolvedValue({ success: false, message: 'File not found or not currently retrieved' });
+      mockReturnFile.mockResolvedValue({ success: false, message: 'File not found or not currently retrieved' });
 
       const response = await request(app)
         .post('/api/files/return')
@@ -319,7 +351,7 @@ describe('File Management Endpoints', () => {
     });
 
     test('should return 500 on database error', async () => {
-      const returnFileSpy = jest.spyOn(prismaClient, 'returnFile').mockRejectedValue(new Error('DB Error'));
+      mockReturnFile.mockRejectedValue(new Error('DB Error'));
 
       const response = await request(app)
         .post('/api/files/return')

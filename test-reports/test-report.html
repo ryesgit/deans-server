@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Report - Authentication API</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+    .container { max-width: 1400px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+    h1 { color: #333; border-bottom: 3px solid #007bff; padding-bottom: 10px; }
+    .summary { display: flex; gap: 20px; margin: 20px 0; }
+    .stat { background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #007bff; }
+    .stat h3 { margin: 0; color: #666; }
+    .stat .number { font-size: 24px; font-weight: bold; color: #007bff; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th { background: #007bff; color: white; padding: 12px; text-align: left; }
+    td { padding: 10px; border-bottom: 1px solid #ddd; }
+    tr:hover { background: #f8f9fa; }
+    .pass-badge { background: #28a745; color: white; padding: 4px 8px; border-radius: 3px; }
+    .fail-badge { background: #dc3545; color: white; padding: 4px 8px; border-radius: 3px; }
+    .timestamp { color: #666; font-size: 12px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Test Report - Authentication API</h1>
+    
+    <div class="summary">
+      <div class="stat">
+        <h3>Total Tests</h3>
+        <div class="number">24</div>
+      </div>
+      <div class="stat">
+        <h3>Passed</h3>
+        <div class="number" style="color: #28a745;">24</div>
+      </div>
+      <div class="stat">
+        <h3>Failed</h3>
+        <div class="number" style="color: #dc3545;">0</div>
+      </div>
+      <div class="stat">
+        <h3>Pass Rate</h3>
+        <div class="number" style="color: #28a745;">100%</div>
+      </div>
+    </div>
+    
+    <table>
+      <thead>
+        <tr>
+          <th>Test ID</th>
+          <th>Test Name</th>
+          <th>Endpoint</th>
+          <th>Input Data</th>
+          <th>Expected Output</th>
+          <th>Status</th>
+          <th>Category</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+    <tr>
+      <td>TC001</td>
+      <td>should register a new user with all fields</td>
+      <td>POST /api/auth/register</td>
+      <td>userId, password, name, department, email</td>
+      <td>201 + success message + user data</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Successful Registration</td>
+    </tr>
+  
+    <tr>
+      <td>TC002</td>
+      <td>should register a user with only required fields</td>
+      <td>POST /api/auth/register</td>
+      <td>userId, password, name</td>
+      <td>201 + success message</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Successful Registration</td>
+    </tr>
+  
+    <tr>
+      <td>TC003</td>
+      <td>should hash the password before storing</td>
+      <td>POST /api/auth/register</td>
+      <td>password (plaintext)</td>
+      <td>bcrypt hashed password (not plaintext)</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Successful Registration</td>
+    </tr>
+  
+    <tr>
+      <td>TC004</td>
+      <td>should return 400 when userId is missing</td>
+      <td>POST /api/auth/register</td>
+      <td>missing userId field</td>
+      <td>400 + missing userId error</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Validation Errors</td>
+    </tr>
+  
+    <tr>
+      <td>TC005</td>
+      <td>should return 400 when password is missing</td>
+      <td>POST /api/auth/register</td>
+      <td>missing password field</td>
+      <td>400 + missing password error</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Validation Errors</td>
+    </tr>
+  
+    <tr>
+      <td>TC006</td>
+      <td>should return 400 when name is missing</td>
+      <td>POST /api/auth/register</td>
+      <td>missing name field</td>
+      <td>400 + missing name error</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Validation Errors</td>
+    </tr>
+  
+    <tr>
+      <td>TC007</td>
+      <td>should return 400 when all required fields are missing</td>
+      <td>POST /api/auth/register</td>
+      <td>all fields missing</td>
+      <td>400 + error message</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Validation Errors</td>
+    </tr>
+  
+    <tr>
+      <td>TC008</td>
+      <td>should return 409 when userId already exists</td>
+      <td>POST /api/auth/register</td>
+      <td>duplicate userId</td>
+      <td>409 + user already exists error</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Duplicate User Errors</td>
+    </tr>
+  
+    <tr>
+      <td>TC009</td>
+      <td>should return 500 when database create fails</td>
+      <td>POST /api/auth/register</td>
+      <td>valid data (DB fails)</td>
+      <td>500 + registration failed error</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Database Errors</td>
+    </tr>
+  
+    <tr>
+      <td>TC010</td>
+      <td>should login with valid credentials</td>
+      <td>POST /api/auth/login</td>
+      <td>userId, correct password</td>
+      <td>200 + user data + token</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Successful Login</td>
+    </tr>
+  
+    <tr>
+      <td>TC011</td>
+      <td>should not expose password in response</td>
+      <td>POST /api/auth/login</td>
+      <td>valid credentials</td>
+      <td>user object without password field</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Successful Login</td>
+    </tr>
+  
+    <tr>
+      <td>TC012</td>
+      <td>should return 400 when userId is missing</td>
+      <td>POST /api/auth/login</td>
+      <td>missing userId</td>
+      <td>400 + missing credentials error</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Login Validation Errors</td>
+    </tr>
+  
+    <tr>
+      <td>TC013</td>
+      <td>should return 400 when password is missing</td>
+      <td>POST /api/auth/login</td>
+      <td>missing password</td>
+      <td>400 + missing credentials error</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Login Validation Errors</td>
+    </tr>
+  
+    <tr>
+      <td>TC014</td>
+      <td>should return 400 when both fields are missing</td>
+      <td>POST /api/auth/login</td>
+      <td>missing both userId and password</td>
+      <td>400 + missing credentials error</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Login Validation Errors</td>
+    </tr>
+  
+    <tr>
+      <td>TC015</td>
+      <td>should return 401 when user does not exist</td>
+      <td>POST /api/auth/login</td>
+      <td>nonexistent userId</td>
+      <td>401 + invalid credentials error</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Authentication Errors</td>
+    </tr>
+  
+    <tr>
+      <td>TC016</td>
+      <td>should return 401 when password is incorrect</td>
+      <td>POST /api/auth/login</td>
+      <td>userId with wrong password</td>
+      <td>401 + invalid credentials error</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Authentication Errors</td>
+    </tr>
+  
+    <tr>
+      <td>TC017</td>
+      <td>should not reveal whether user exists or password is wrong</td>
+      <td>POST /api/auth/login</td>
+      <td>nonexistent user vs wrong password</td>
+      <td>same generic error for both cases</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Authentication Errors</td>
+    </tr>
+  
+    <tr>
+      <td>TC018</td>
+      <td>should return 500 when database query fails</td>
+      <td>POST /api/auth/login</td>
+      <td>valid credentials (DB fails)</td>
+      <td>500 + login failed error</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Login Database Errors</td>
+    </tr>
+  
+    <tr>
+      <td>TC019</td>
+      <td>should verify existing user</td>
+      <td>GET /api/auth/verify/:userId</td>
+      <td>valid existing userId</td>
+      <td>200 + user data</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Successful Verification</td>
+    </tr>
+  
+    <tr>
+      <td>TC020</td>
+      <td>should not expose password in verification response</td>
+      <td>GET /api/auth/verify/:userId</td>
+      <td>valid userId</td>
+      <td>user object without password field</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Successful Verification</td>
+    </tr>
+  
+    <tr>
+      <td>TC021</td>
+      <td>should return 404 when user does not exist</td>
+      <td>GET /api/auth/verify/:userId</td>
+      <td>nonexistent userId</td>
+      <td>404 + user not found error</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>User Not Found</td>
+    </tr>
+  
+    <tr>
+      <td>TC022</td>
+      <td>should return 500 when database query fails</td>
+      <td>GET /api/auth/verify/:userId</td>
+      <td>valid userId (DB fails)</td>
+      <td>500 + verification failed error</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Verify Database Errors</td>
+    </tr>
+  
+    <tr>
+      <td>TC023</td>
+      <td>should be able to register and then login</td>
+      <td>POST /api/auth/register + POST /api/auth/login</td>
+      <td>new user credentials</td>
+      <td>successful registration then login with token</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Integration Tests</td>
+    </tr>
+  
+    <tr>
+      <td>TC024</td>
+      <td>should verify user after registration</td>
+      <td>POST /api/auth/register + GET /api/auth/verify</td>
+      <td>new user credentials</td>
+      <td>user created and verified successfully</td>
+      <td><span class="pass-badge">PASS</span></td>
+      <td>Integration Tests</td>
+    </tr>
+  
+      </tbody>
+    </table>
+    
+    <p class="timestamp">Generated: 11/24/2025, 10:59:11 PM</p>
+  </div>
+</body>
+</html>
