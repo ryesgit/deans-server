@@ -21,6 +21,14 @@ export const mockPrismaClient = {
     createMany: jest.fn(),
     update: jest.fn(),
   },
+  settings: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    upsert: jest.fn(),
+    delete: jest.fn(),
+  },
   transaction: {
     create: jest.fn(),
     findMany: jest.fn(),

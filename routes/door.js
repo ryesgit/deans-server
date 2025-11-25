@@ -31,15 +31,22 @@ router.post("/unlock", async (req, res) => {
       timestamp: new Date().toISOString(),
     });
 
-    console.log(`⏳ Waiting 3 seconds before auto-lock...`);
-    await sleep(3000);
+    // Schedule auto-lock in background (don't await or use response)
+    setImmediate(async () => {
+      try {
+        console.log(`⏳ Waiting 3 seconds before auto-lock...`);
+        await sleep(3000);
 
-    console.log(`🔒 Auto-locking Row ${row}, Column ${column}`);
-    await esp32Controller.lockDoor(row, column);
+        console.log(`🔒 Auto-locking Row ${row}, Column ${column}`);
+        await esp32Controller.lockDoor(row, column);
 
-    if (userId) {
-      await logAccess(userId, null, "auto_lock", row, column, true);
-    }
+        if (userId) {
+          await logAccess(userId, null, "auto_lock", row, column, true);
+        }
+      } catch (lockError) {
+        console.error("Auto-lock error:", lockError);
+      }
+    });
   } catch (error) {
     console.error("Manual unlock error:", error);
 
