@@ -312,42 +312,48 @@ router.put('/:id/approve', apiLimiter, authenticateToken, authorizeRoles('ADMIN'
     });
 
     // Find and update file status to CHECKED_OUT
-    console.log(`🔍 Searching for file: userId=${request.user.userId}, title contains="${request.title}", status=AVAILABLE`);
+    let file;
+    
+    if (request.fileId) {
+      console.log(`🔍 Searching for file by ID: ${request.fileId}`);
+      file = await prisma.file.findUnique({
+        where: { id: request.fileId }
+      });
+    } else {
+      console.log(`🔍 Searching for file by title: "${request.title}", status=AVAILABLE`);
+      // Fallback for requests without fileId (legacy or manual requests)
+      // We search for ANY available file with matching title, regardless of owner
+      file = await prisma.file.findFirst({
+        where: {
+          filename: {
+            contains: request.title,
+            mode: 'insensitive'
+          },
+          status: 'AVAILABLE'
+        }
+      });
+    }
 
-    const file = await prisma.file.findFirst({
-      where: {
-        userId: request.user.userId,
-        filename: {
-          contains: request.title,
-          mode: 'insensitive'
-        },
-        status: 'AVAILABLE'
-      }
-    });
-
-    if (file) {
+    if (file && file.status === 'AVAILABLE') {
       console.log(`✅ FOUND file ID ${file.id}: ${file.filename} (status: ${file.status})`);
       await prisma.file.update({
         where: { id: file.id },
-        data: { status: 'CHECKED_OUT' }
+        data: {
+          status: 'CHECKED_OUT',
+          userId: request.userId // Assign file to requester
+        }
       });
-      console.log(`✅ File ${file.filename} status updated to CHECKED_OUT for user ${request.user.userId}`);
+      console.log(`✅ File ${file.filename} status updated to CHECKED_OUT and assigned to user ${request.userId}`);
+    } else if (file) {
+      console.log(`⚠️ File found but not AVAILABLE. Status: ${file.status}`);
     } else {
-      console.log(`❌ No matching AVAILABLE file found for request: ${request.title}`);
-      console.log(`   User ID: ${request.user.userId}`);
-
-      // Debug: show what files exist
-      const userFiles = await prisma.file.findMany({
-        where: { userId: request.user.userId },
-        select: { id: true, filename: true, status: true }
-      });
-      console.log(`   User has ${userFiles.length} files:`, userFiles);
+      console.log(`❌ No matching file found for request: ${request.title}`);
     }
 
     // Create notification for request owner
     await prisma.notification.create({
       data: {
-        userId: request.user.userId,
+        userId: request.userId,
         type: 'SUCCESS',
         title: 'Request Approved',
         message: `Your request "${request.title}" has been approved by ${req.user.name}${notes ? `: ${notes}` : ''}. ${file ? 'Your file is now ready for pickup.' : ''}`,
@@ -423,7 +429,7 @@ router.put('/:id/decline', apiLimiter, authenticateToken, authorizeRoles('ADMIN'
     // Create notification for request owner
     await prisma.notification.create({
       data: {
-        userId: request.user.userId,
+        userId: request.userId,
         type: 'WARNING',
         title: 'Request Declined',
         message: `Your request "${request.title}" has been declined by ${req.user.name}${reason ? `: ${reason}` : ''}`,
