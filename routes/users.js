@@ -370,6 +370,102 @@ router.put('/:id', userOperationsLimiter, authenticateToken, async (req, res) =>
   }
 });
 
+// Approve pending user (Admin only)
+router.post('/:id/approve', userOperationsLimiter, authenticateToken, authorizeRoles('ADMIN'), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const numericId = !isNaN(id) ? parseInt(id) : null;
+    const whereClause = numericId ? { id: numericId } : { userId: id };
+
+    const user = await prisma.user.findFirst({ where: whereClause });
+
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found',
+        message: 'No user found with that ID'
+      });
+    }
+
+    if (user.status !== 'PENDING') {
+      return res.status(400).json({
+        error: 'Invalid status',
+        message: 'Only pending users can be approved'
+      });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: whereClause,
+      data: { status: 'ACTIVE' },
+      select: {
+        id: true,
+        userId: true,
+        name: true,
+        email: true,
+        role: true,
+        department: true,
+        status: true
+      }
+    });
+
+    res.json({
+      message: 'User approved successfully',
+      user: updatedUser
+    });
+
+  } catch (error) {
+    console.error('Approve user error:', error);
+    res.status(500).json({
+      error: 'Failed to approve user',
+      message: error.message
+    });
+  }
+});
+
+// Reject pending user (Admin only)
+router.post('/:id/reject', userOperationsLimiter, authenticateToken, authorizeRoles('ADMIN'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const numericId = !isNaN(id) ? parseInt(id) : null;
+    const whereClause = numericId ? { id: numericId } : { userId: id };
+
+    const user = await prisma.user.findFirst({ where: whereClause });
+
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found',
+        message: 'No user found with that ID'
+      });
+    }
+
+    if (user.status !== 'PENDING') {
+      return res.status(400).json({
+        error: 'Invalid status',
+        message: 'Only pending users can be rejected'
+      });
+    }
+
+    await prisma.user.delete({
+      where: whereClause
+    });
+
+    res.json({
+      message: 'User registration rejected and removed',
+      userId: user.userId,
+      reason: reason || 'No reason provided'
+    });
+
+  } catch (error) {
+    console.error('Reject user error:', error);
+    res.status(500).json({
+      error: 'Failed to reject user',
+      message: error.message
+    });
+  }
+});
+
 // Delete user (Admin only)
 router.delete('/:id', userOperationsLimiter, authenticateToken, authorizeRoles('ADMIN'), async (req, res) => {
   try {

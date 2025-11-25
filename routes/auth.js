@@ -12,7 +12,18 @@ const JWT_EXPIRATION = process.env.JWT_EXPIRATION || '7d';
 // Register endpoint
 router.post('/register', async (req, res) => {
   try {
-    const { userId, password, name, department, email } = req.body;
+    const {
+      userId,
+      password,
+      name,
+      department,
+      email,
+      contactNumber,
+      gender,
+      dateOfBirth,
+      role,
+      idNumber
+    } = req.body;
 
     if (!userId || !password || !name) {
       return res.status(400).json({
@@ -21,14 +32,26 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    const existingUser = await prisma.user.findUnique({
-      where: { userId }
+    if (password.length < 6) {
+      return res.status(400).json({
+        error: 'Invalid password',
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { userId },
+          ...(email ? [{ email }] : [])
+        ]
+      }
     });
 
     if (existingUser) {
       return res.status(409).json({
         error: 'User already exists',
-        message: 'A user with this ID already exists'
+        message: 'A user with this ID or email already exists'
       });
     }
 
@@ -37,21 +60,30 @@ router.post('/register', async (req, res) => {
     const user = await prisma.user.create({
       data: {
         userId,
+        idNumber: idNumber || null,
         password: hashedPassword,
         name,
         department: department || null,
-        email: email || null
+        email: email || null,
+        contactNumber: contactNumber || null,
+        gender: gender || null,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+        role: role || 'STUDENT',
+        status: 'PENDING'
       }
     });
 
     res.status(201).json({
       success: true,
-      message: 'User registered successfully',
+      message: 'Registration submitted successfully. Your account is pending admin approval.',
       user: {
+        id: user.id,
         userId: user.userId,
         name: user.name,
+        email: user.email,
+        role: user.role,
         department: user.department,
-        email: user.email
+        status: user.status
       }
     });
 
@@ -113,7 +145,14 @@ router.post('/login', /*authLimiter,*/ async (req, res) => {
       });
     }
 
-    // Check if user is active
+    // Check user status
+    if (user.status === 'PENDING') {
+      return res.status(403).json({
+        error: 'Account pending approval',
+        message: 'Your account is pending admin approval. Please wait for approval before logging in.'
+      });
+    }
+
     if (user.status !== 'ACTIVE') {
       return res.status(403).json({
         error: 'Account suspended',
