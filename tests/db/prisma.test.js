@@ -157,9 +157,13 @@ describe('Database Layer - Prisma Client Functions', () => {
         id: 99,
         userId: 'PUP001',
         filename: 'NewFile.pdf',
+        filePath: null,
         rowPosition: 3,
         columnPosition: 4,
         shelfNumber: 1,
+        categoryId: null,
+        fileType: null,
+        fileUrl: null,
       };
       mockPrismaClient.file.create.mockResolvedValue(newFile);
 
@@ -170,6 +174,7 @@ describe('Database Layer - Prisma Client Functions', () => {
         data: {
           userId: 'PUP001',
           filename: 'NewFile.pdf',
+          filePath: null,
           rowPosition: 3,
           columnPosition: 4,
           shelfNumber: 1,

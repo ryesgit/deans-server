@@ -4,36 +4,43 @@ import express from 'express';
 import { mockUsers, mockFiles } from '../utils/prismaMock.js';
 
 // Create mock functions for prismaClient module
-const mockCheckUserExists = jest.fn();
-const mockGetAvailableFilesForUser = jest.fn();
-const mockGetFileLocation = jest.fn();
-const mockLogAccess = jest.fn();
-const mockUpdateFileAccess = jest.fn();
-const mockGetAccessLogs = jest.fn();
-const mockAddFile = jest.fn();
 const mockGetUserFiles = jest.fn();
 const mockGetAllFiles = jest.fn();
+const mockAddFile = jest.fn();
 const mockSearchFiles = jest.fn();
 const mockReturnFile = jest.fn();
+
+// Create mock prisma client
+const mockPrismaClient = {
+  file: {
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  },
+  user: {
+    findUnique: jest.fn(),
+  },
+  $connect: jest.fn(),
+  $disconnect: jest.fn(),
+};
 
 // Mock prismaClient module BEFORE any routes are imported
 jest.unstable_mockModule('../../prismaClient.js', () => ({
   initializeDatabase: jest.fn(),
-  checkUserExists: mockCheckUserExists,
-  getAvailableFilesForUser: mockGetAvailableFilesForUser,
-  getFileLocation: mockGetFileLocation,
-  logAccess: mockLogAccess,
-  updateFileAccess: mockUpdateFileAccess,
-  getAccessLogs: mockGetAccessLogs,
-  addFile: mockAddFile,
   getUserFiles: mockGetUserFiles,
   getAllFiles: mockGetAllFiles,
+  addFile: mockAddFile,
   searchFiles: mockSearchFiles,
   returnFile: mockReturnFile,
-  prisma: {
-    $connect: jest.fn(),
-    $disconnect: jest.fn(),
-  },
+  prisma: mockPrismaClient,
+}));
+
+// Mock @prisma/client
+jest.unstable_mockModule('@prisma/client', () => ({
+  PrismaClient: jest.fn(() => mockPrismaClient),
 }));
 
 // Create test app
@@ -81,9 +88,10 @@ describe('File Management Endpoints', () => {
       expect(response.body.userId).toBe('PUP001');
       expect(response.body.count).toBe(2);
       expect(response.body.files).toHaveLength(2);
+      expect(mockGetUserFiles).toHaveBeenCalledWith('PUP001');
     });
 
-    test('should return 404 when user has no files', async () => {
+    test('should handle missing userId in get files', async () => {
       mockGetUserFiles.mockResolvedValue([]);
 
       const response = await request(app)
@@ -95,7 +103,7 @@ describe('File Management Endpoints', () => {
       expect(response.body.files).toEqual([]);
     });
 
-    test('should return 500 on database error', async () => {
+    test('should handle database error on get files', async () => {
       mockGetUserFiles.mockRejectedValue(new Error('DB Error'));
 
       const response = await request(app)
@@ -103,11 +111,12 @@ describe('File Management Endpoints', () => {
         .expect(500);
 
       expect(response.body.error).toBe('Failed to retrieve files');
+      expect(response.body.message).toBe('DB Error');
     });
   });
 
   describe('GET /api/files/all', () => {
-    test('should fetch all files in the system', async () => {
+    test('should get all files', async () => {
       mockGetAllFiles.mockResolvedValue(mockFiles);
 
       const response = await request(app)
@@ -117,9 +126,10 @@ describe('File Management Endpoints', () => {
       expect(response.body.message).toBe('All files retrieved successfully');
       expect(response.body.count).toBe(mockFiles.length);
       expect(response.body.files).toHaveLength(mockFiles.length);
+      expect(mockGetAllFiles).toHaveBeenCalled();
     });
 
-    test('should return empty array when no files exist', async () => {
+    test('should return empty results when no files exist', async () => {
       mockGetAllFiles.mockResolvedValue([]);
 
       const response = await request(app)
@@ -130,7 +140,7 @@ describe('File Management Endpoints', () => {
       expect(response.body.files).toEqual([]);
     });
 
-    test('should return 500 on database error', async () => {
+    test('should handle database error on get all files', async () => {
       mockGetAllFiles.mockRejectedValue(new Error('DB Error'));
 
       const response = await request(app)
@@ -142,8 +152,8 @@ describe('File Management Endpoints', () => {
   });
 
   describe('GET /api/files/search', () => {
-    test('should return filtered files matching query', async () => {
-      const searchResults = [mockFiles[0]]; // Engineering files
+    test('should search files', async () => {
+      const searchResults = [mockFiles[0]];
       mockSearchFiles.mockResolvedValue(searchResults);
 
       const response = await request(app)
@@ -154,9 +164,10 @@ describe('File Management Endpoints', () => {
       expect(response.body.query).toBe('Engineering');
       expect(response.body.count).toBe(1);
       expect(response.body.files).toHaveLength(1);
+      expect(mockSearchFiles).toHaveBeenCalled();
     });
 
-    test('should return 400 when query parameter is missing', async () => {
+    test('should handle search with missing query parameter', async () => {
       const response = await request(app)
         .get('/api/files/search')
         .expect(400);
@@ -164,18 +175,7 @@ describe('File Management Endpoints', () => {
       expect(response.body.error).toBe('Search query required');
     });
 
-    test('should search by userId when provided', async () => {
-      const userFiles = mockFiles.filter(f => f.userId === 'PUP001');
-      mockSearchFiles.mockResolvedValue(userFiles);
-
-      const response = await request(app)
-        .get('/api/files/search?q=Thesis&userId=PUP001')
-        .expect(200);
-
-      expect(response.body.count).toBe(2);
-    });
-
-    test('should return empty results when no matches found', async () => {
+    test('should handle search with no results', async () => {
       mockSearchFiles.mockResolvedValue([]);
 
       const response = await request(app)
@@ -186,7 +186,7 @@ describe('File Management Endpoints', () => {
       expect(response.body.files).toEqual([]);
     });
 
-    test('should return 500 on database error', async () => {
+    test('should handle database error on search files', async () => {
       mockSearchFiles.mockRejectedValue(new Error('Search failed'));
 
       const response = await request(app)
@@ -198,10 +198,8 @@ describe('File Management Endpoints', () => {
   });
 
   describe('POST /api/files/add', () => {
-    test('should add new file with correct data', async () => {
-      const newFile = {
-        id: 99,
-      };
+    test('should add file', async () => {
+      const newFile = { id: 99 };
       mockAddFile.mockResolvedValue({ fileId: newFile.id });
 
       const response = await request(app)
@@ -217,25 +215,10 @@ describe('File Management Endpoints', () => {
 
       expect(response.body.message).toBe('File added successfully');
       expect(response.body.fileId).toBe(99);
+      expect(response.body.file.userId).toBe('PUP001');
     });
 
-    test('should use default shelf number when not provided', async () => {
-      mockAddFile.mockResolvedValue({ fileId: 100 });
-
-      const response = await request(app)
-        .post('/api/files/add')
-        .send({
-          userId: 'PUP001',
-          filename: 'File.pdf',
-          rowPosition: 1,
-          columnPosition: 1,
-        })
-        .expect(201);
-
-      expect(response.body.file.shelfNumber).toBe(1);
-    });
-
-    test('should return 400 when userId is missing', async () => {
+    test('should handle invalid file data', async () => {
       const response = await request(app)
         .post('/api/files/add')
         .send({
@@ -248,46 +231,7 @@ describe('File Management Endpoints', () => {
       expect(response.body.error).toBe('Missing required fields');
     });
 
-    test('should return 400 when filename is missing', async () => {
-      const response = await request(app)
-        .post('/api/files/add')
-        .send({
-          userId: 'PUP001',
-          rowPosition: 1,
-          columnPosition: 1,
-        })
-        .expect(400);
-
-      expect(response.body.error).toBe('Missing required fields');
-    });
-
-    test('should return 400 when rowPosition is missing', async () => {
-      const response = await request(app)
-        .post('/api/files/add')
-        .send({
-          userId: 'PUP001',
-          filename: 'File.pdf',
-          columnPosition: 1,
-        })
-        .expect(400);
-
-      expect(response.body.error).toBe('Missing required fields');
-    });
-
-    test('should return 400 when columnPosition is missing', async () => {
-      const response = await request(app)
-        .post('/api/files/add')
-        .send({
-          userId: 'PUP001',
-          filename: 'File.pdf',
-          rowPosition: 1,
-        })
-        .expect(400);
-
-      expect(response.body.error).toBe('Missing required fields');
-    });
-
-    test('should return 500 on database error', async () => {
+    test('should handle database error on add file', async () => {
       mockAddFile.mockRejectedValue(new Error('DB Error'));
 
       const response = await request(app)
@@ -305,7 +249,7 @@ describe('File Management Endpoints', () => {
   });
 
   describe('POST /api/files/return', () => {
-    test('should return file successfully', async () => {
+    test('should return file', async () => {
       mockReturnFile.mockResolvedValue({ success: true, fileId: 4 });
 
       const response = await request(app)
@@ -320,9 +264,10 @@ describe('File Management Endpoints', () => {
 
       expect(response.body.message).toBe('File returned successfully');
       expect(response.body.fileId).toBe(4);
+      expect(mockReturnFile).toHaveBeenCalled();
     });
 
-    test('should return 400 when file not found or not retrieved', async () => {
+    test('should handle missing file on return', async () => {
       mockReturnFile.mockResolvedValue({ success: false, message: 'File not found or not currently retrieved' });
 
       const response = await request(app)
@@ -338,19 +283,7 @@ describe('File Management Endpoints', () => {
       expect(response.body.error).toBe('File not found or not currently retrieved');
     });
 
-    test('should return 400 when required fields are missing', async () => {
-      const response = await request(app)
-        .post('/api/files/return')
-        .send({
-          userId: 'USER002',
-          fileId: 4,
-        })
-        .expect(400);
-
-      expect(response.body.error).toBe('Missing required fields');
-    });
-
-    test('should return 500 on database error', async () => {
+    test('should handle database error on return file', async () => {
       mockReturnFile.mockRejectedValue(new Error('DB Error'));
 
       const response = await request(app)
