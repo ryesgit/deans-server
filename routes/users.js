@@ -218,7 +218,10 @@ router.post('/', userOperationsLimiter, authenticateToken, authorizeRoles('ADMIN
       hashedPassword = await bcrypt.hash(password, 10);
     }
 
-    const qrCodeUrl = await generateUserQRCode(userId);
+    let finalAvatar = await generateUserQRCode(userId);
+    if (req.body.avatar) {
+      finalAvatar = req.body.avatar;
+    }
 
     const newUser = await prisma.user.create({
       data: {
@@ -233,7 +236,7 @@ router.post('/', userOperationsLimiter, authenticateToken, authorizeRoles('ADMIN
         gender,
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
         status,
-        avatar: qrCodeUrl
+        avatar: finalAvatar
       },
       select: {
         id: true,

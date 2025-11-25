@@ -138,9 +138,12 @@ router.get('/dashboard', readLimiter, authenticateToken, async (req, res) => {
       }
     });
 
-    // Get recent requests
+    // Get recent requests (exclude cancelled)
     const recentRequests = await prisma.request.findMany({
-      where: userId ? { userId } : {},
+      where: {
+        ...(userId ? { userId } : {}),
+        status: { not: 'CANCELLED' }
+      },
       include: {
         user: {
           select: { name: true, department: true }
