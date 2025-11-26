@@ -65,7 +65,10 @@ router.post('/upload', uploadLimiter, authenticateToken, upload.single('file'), 
       columnPosition,
       shelfNumber,
       categoryId,
-      fileType
+      fileType,
+      folderName,
+      folderNumber,
+      folderContents
     } = req.body;
 
     // Use authenticated user's ID if not admin
@@ -84,7 +87,10 @@ router.post('/upload', uploadLimiter, authenticateToken, upload.single('file'), 
       categoryId,
       finalFileType,
       fileUrl,
-      req.file.path
+      req.file.path,
+      folderName,
+      folderNumber,
+      folderContents
     );
 
     const uploadedFile = await prisma.file.findUnique({

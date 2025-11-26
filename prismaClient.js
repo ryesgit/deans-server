@@ -127,70 +127,100 @@ const seedDatabase = async () => {
           filename: 'Engineering_Thesis_2024.pdf',
           rowPosition: 1,
           columnPosition: 3,
-          shelfNumber: 1
+          shelfNumber: 1,
+          folderName: 'Engineering Theses',
+          folderNumber: 'ENG-2024-001',
+          folderContents: 'Research papers, diagrams, and project documentation'
         },
         {
           userId: 'PUP001',
           filename: 'Project_Documentation.pdf',
           rowPosition: 2,
           columnPosition: 1,
-          shelfNumber: 1
+          shelfNumber: 1,
+          folderName: 'Engineering Projects',
+          folderNumber: 'ENG-PROJ-2024',
+          folderContents: 'Technical specifications and design documents'
         },
         {
           userId: 'PUP002',
           filename: 'Business_Plan_Final.pdf',
           rowPosition: 1,
           columnPosition: 5,
-          shelfNumber: 1
+          shelfNumber: 1,
+          folderName: 'Business Plans',
+          folderNumber: 'BUS-2024-001',
+          folderContents: 'Financial projections and market analysis'
         },
         {
           userId: 'PUP002',
           filename: 'Marketing_Research.pdf',
           rowPosition: 3,
           columnPosition: 2,
-          shelfNumber: 1
+          shelfNumber: 1,
+          folderName: 'Marketing Studies',
+          folderNumber: 'MKT-2024-001',
+          folderContents: 'Survey results and consumer behavior analysis'
         },
         {
           userId: 'PUP003',
           filename: 'Capstone_Project.pdf',
           rowPosition: 2,
           columnPosition: 4,
-          shelfNumber: 1
+          shelfNumber: 1,
+          folderName: 'CS Capstone Projects',
+          folderNumber: 'CS-CAP-2024',
+          folderContents: 'Source code, documentation, and test results'
         },
         {
           userId: 'PUP003',
           filename: 'Algorithm_Analysis.pdf',
           rowPosition: 1,
           columnPosition: 1,
-          shelfNumber: 1
+          shelfNumber: 1,
+          folderName: 'Computer Science Research',
+          folderNumber: 'CS-RES-2024',
+          folderContents: 'Algorithm implementations and performance metrics'
         },
         {
           userId: 'USER001',
           filename: 'John_Thesis_2024.pdf',
           rowPosition: 2,
           columnPosition: 2,
-          shelfNumber: 1
+          shelfNumber: 1,
+          folderName: 'Student Theses',
+          folderNumber: 'STD-TH-2024',
+          folderContents: 'Final thesis manuscript and supporting materials'
         },
         {
           userId: 'USER003',
           filename: 'Bob_Project_Report.pdf',
           rowPosition: 1,
           columnPosition: 4,
-          shelfNumber: 1
+          shelfNumber: 1,
+          folderName: 'Project Reports',
+          folderNumber: 'PRJ-RPT-2024',
+          folderContents: 'Progress reports and final deliverables'
         },
         {
           userId: 'USER003',
           filename: 'Bob_Research_Paper.pdf',
           rowPosition: 3,
           columnPosition: 1,
-          shelfNumber: 1
+          shelfNumber: 1,
+          folderName: 'Research Papers',
+          folderNumber: 'RES-2024-001',
+          folderContents: 'Literature review and experimental data'
         },
         {
           userId: 'ADMIN001',
           filename: 'Administrative_Records.pdf',
           rowPosition: 2,
           columnPosition: 5,
-          shelfNumber: 1
+          shelfNumber: 1,
+          folderName: 'Administrative Files',
+          folderNumber: 'ADM-2024-001',
+          folderContents: 'Official records and administrative documents'
         }
       ],
       skipDuplicates: true
@@ -469,7 +499,7 @@ export const getAllFiles = async () => {
   }
 };
 
-export const addFile = async (userId, filename, rowPosition, columnPosition, shelfNumber = 1, categoryId = null, fileType = null, fileUrl = null, filePath = null) => {
+export const addFile = async (userId, filename, rowPosition, columnPosition, shelfNumber = 1, categoryId = null, fileType = null, fileUrl = null, filePath = null, folderName = null, folderNumber = null, folderContents = null) => {
   try {
     const file = await prisma.file.create({
       data: {
@@ -481,7 +511,10 @@ export const addFile = async (userId, filename, rowPosition, columnPosition, she
         categoryId: categoryId ? parseInt(categoryId) : null,
         fileType,
         fileUrl,
-        filePath
+        filePath,
+        folderName,
+        folderNumber,
+        folderContents
       }
     });
 
