@@ -84,8 +84,8 @@ router.get('/:id', readLimiter, async (req, res) => {
   }
 });
 
-// Create category (Admin/Staff only)
-router.post('/', apiLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+// Create category (Admin/Staff/Faculty only)
+router.post('/', apiLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF', 'FACULTY'), async (req, res) => {
   try {
     const { name, description, color, icon } = req.body;
 
@@ -131,8 +131,8 @@ router.post('/', apiLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF')
   }
 });
 
-// Update category (Admin/Staff only)
-router.put('/:id', apiLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+// Update category (Admin/Staff/Faculty only)
+router.put('/:id', apiLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF', 'FACULTY'), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, color, icon } = req.body;

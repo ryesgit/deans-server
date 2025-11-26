@@ -8,7 +8,7 @@ const router = express.Router();
 // Get dashboard statistics
 router.get('/dashboard', readLimiter, authenticateToken, async (req, res) => {
   try {
-    const isAdminOrStaff = ['ADMIN', 'STAFF'].includes(req.user.role);
+    const isAdminOrStaff = ['ADMIN', 'STAFF', 'FACULTY'].includes(req.user.role);
     const userId = isAdminOrStaff ? null : req.user.userId;
 
     // Get counts
@@ -272,7 +272,7 @@ router.get('/dashboard', readLimiter, authenticateToken, async (req, res) => {
 // Get recent activity log
 router.get('/activity-log', readLimiter, authenticateToken, async (req, res) => {
   try {
-    const isAdminOrStaff = ['ADMIN', 'STAFF'].includes(req.user.role);
+    const isAdminOrStaff = ['ADMIN', 'STAFF', 'FACULTY'].includes(req.user.role);
     const userId = isAdminOrStaff ? null : req.user.userId;
     const limit = req.query.limit ? parseInt(req.query.limit) : 10;
 
@@ -314,7 +314,7 @@ router.get('/activity-log', readLimiter, authenticateToken, async (req, res) => 
 });
 
 // Get file statistics
-router.get('/files', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+router.get('/files', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF', 'FACULTY'), async (req, res) => {
   try {
     const filesByStatus = await prisma.file.groupBy({
       by: ['status'],
@@ -354,7 +354,7 @@ router.get('/files', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'ST
 });
 
 // Get user statistics
-router.get('/users', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+router.get('/users', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF', 'FACULTY'), async (req, res) => {
   try {
     const usersByRole = await prisma.user.groupBy({
       by: ['role'],

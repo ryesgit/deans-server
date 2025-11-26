@@ -10,7 +10,7 @@ router.get('/', readLimiter, authenticateToken, async (req, res) => {
   try {
     const { status, type, userId, page = 1, limit = 50 } = req.query;
     
-    const isAdminOrStaff = ['ADMIN', 'STAFF'].includes(req.user.role);
+    const isAdminOrStaff = ['ADMIN', 'STAFF', 'FACULTY'].includes(req.user.role);
     
     const whereClause = {};
     
@@ -95,7 +95,7 @@ router.get('/:id', readLimiter, authenticateToken, async (req, res) => {
 
     // Check authorization
     const isOwner = request.userId === req.user.userId;
-    const isAdminOrStaff = ['ADMIN', 'STAFF'].includes(req.user.role);
+    const isAdminOrStaff = ['ADMIN', 'STAFF', 'FACULTY'].includes(req.user.role);
 
     if (!isOwner && !isAdminOrStaff) {
       return res.status(403).json({
@@ -157,10 +157,10 @@ router.post('/', apiLimiter, authenticateToken, async (req, res) => {
       }
     });
 
-    // Create notification for admins/staff
+    // Create notification for admins/staff/faculty
     const adminUsers = await prisma.user.findMany({
       where: {
-        role: { in: ['ADMIN', 'STAFF'] },
+        role: { in: ['ADMIN', 'STAFF', 'FACULTY'] },
         status: 'ACTIVE'
       },
       select: { userId: true }
@@ -210,7 +210,7 @@ router.put('/:id', apiLimiter, authenticateToken, async (req, res) => {
     }
 
     const isOwner = request.userId === req.user.userId;
-    const isAdminOrStaff = ['ADMIN', 'STAFF'].includes(req.user.role);
+    const isAdminOrStaff = ['ADMIN', 'STAFF', 'FACULTY'].includes(req.user.role);
 
     if (!isOwner && !isAdminOrStaff) {
       return res.status(403).json({
@@ -261,8 +261,8 @@ router.put('/:id', apiLimiter, authenticateToken, async (req, res) => {
   }
 });
 
-// Approve request (Admin/Staff only)
-router.put('/:id/approve', apiLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+// Approve request (Admin/Staff/Faculty only)
+router.put('/:id/approve', apiLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF', 'FACULTY'), async (req, res) => {
   try {
     const { id } = req.params;
     const { notes } = req.body;
@@ -376,8 +376,8 @@ router.put('/:id/approve', apiLimiter, authenticateToken, authorizeRoles('ADMIN'
   }
 });
 
-// Decline request (Admin/Staff only)
-router.put('/:id/decline', apiLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+// Decline request (Admin/Staff/Faculty only)
+router.put('/:id/decline', apiLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF', 'FACULTY'), async (req, res) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;

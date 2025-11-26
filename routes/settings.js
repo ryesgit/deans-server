@@ -6,7 +6,7 @@ import { readLimiter, apiLimiter } from '../middleware/rateLimiter.js';
 const router = express.Router();
 
 // Get all settings
-router.get('/', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+router.get('/', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF', 'FACULTY'), async (req, res) => {
   try {
     const { category } = req.query;
 
@@ -44,7 +44,7 @@ router.get('/', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF')
 });
 
 // Get setting by key
-router.get('/:key', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+router.get('/:key', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF', 'FACULTY'), async (req, res) => {
   try {
     const { key } = req.params;
 

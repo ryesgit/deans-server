@@ -6,7 +6,7 @@ import { readLimiter } from '../middleware/rateLimiter.js';
 const router = express.Router();
 
 // Generate comprehensive report
-router.get('/generate', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+router.get('/generate', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF', 'FACULTY'), async (req, res) => {
   try {
     const {
       reportType = 'all',
@@ -266,7 +266,7 @@ router.get('/generate', readLimiter, authenticateToken, authorizeRoles('ADMIN', 
 });
 
 // Get file activity report
-router.get('/file-activity', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF'), async (req, res) => {
+router.get('/file-activity', readLimiter, authenticateToken, authorizeRoles('ADMIN', 'STAFF', 'FACULTY'), async (req, res) => {
   try {
     const { days = 30 } = req.query;
 
@@ -331,7 +331,7 @@ router.get('/user-activity/:userId', readLimiter, authenticateToken, async (req,
 
     // Check authorization
     const isOwnReport = req.user.userId === userId;
-    const isAuthorized = isOwnReport || ['ADMIN', 'STAFF'].includes(req.user.role);
+    const isAuthorized = isOwnReport || ['ADMIN', 'STAFF', 'FACULTY'].includes(req.user.role);
 
     if (!isAuthorized) {
       return res.status(403).json({
