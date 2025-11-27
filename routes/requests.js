@@ -136,6 +136,14 @@ router.post('/', apiLimiter, authenticateToken, async (req, res) => {
       });
     }
 
+    // Require fileId for FILE_ACCESS requests to prevent ambiguous file matching
+    if (type === 'FILE_ACCESS' && !fileId) {
+      return res.status(400).json({
+        error: 'File ID required',
+        message: 'File ID is required for file access requests'
+      });
+    }
+
     const request = await prisma.request.create({
       data: {
         userId: req.user.userId,
@@ -320,18 +328,7 @@ router.put('/:id/approve', apiLimiter, authenticateToken, authorizeRoles('ADMIN'
         where: { id: request.fileId }
       });
     } else {
-      console.log(`🔍 Searching for file by title: "${request.title}", status=AVAILABLE`);
-      // Fallback for requests without fileId (legacy or manual requests)
-      // We search for ANY available file with matching title, regardless of owner
-      file = await prisma.file.findFirst({
-        where: {
-          filename: {
-            contains: request.title,
-            mode: 'insensitive'
-          },
-          status: 'AVAILABLE'
-        }
-      });
+      console.log(`⚠️ Request ${request.id} has no fileId - skipping file assignment`);
     }
 
     if (file && file.status === 'AVAILABLE') {
