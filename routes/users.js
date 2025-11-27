@@ -394,9 +394,16 @@ router.post('/:id/approve', userOperationsLimiter, authenticateToken, authorizeR
       });
     }
 
+    // Hash the default password
+    const defaultPassword = 'password123';
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
     const updatedUser = await prisma.user.update({
       where: whereClause,
-      data: { status: 'ACTIVE' },
+      data: { 
+        status: 'ACTIVE',
+        password: hashedPassword // Set default password on approval
+      },
       select: {
         id: true,
         userId: true,
@@ -407,6 +414,8 @@ router.post('/:id/approve', userOperationsLimiter, authenticateToken, authorizeR
         status: true
       }
     });
+
+    console.log(`✅ User ${user.userId} approved and password reset to default`);
 
     res.json({
       message: 'User approved successfully',

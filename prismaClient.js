@@ -602,6 +602,7 @@ export const returnFile = async (userId, fileId) => {
       };
     }
 
+    // Update file status and nullify userId
     const updatedFile = await prisma.file.update({
       where: { id: fileId },
       data: {
@@ -611,11 +612,37 @@ export const returnFile = async (userId, fileId) => {
       }
     });
 
+    // Find and expire associated approved requests
+    const approvedRequests = await prisma.request.findMany({
+      where: {
+        userId: userId,
+        fileId: fileId,
+        status: 'APPROVED'
+      }
+    });
+
+    // Update all approved requests to COMPLETED
+    if (approvedRequests.length > 0) {
+      await prisma.request.updateMany({
+        where: {
+          userId: userId,
+          fileId: fileId,
+          status: 'APPROVED'
+        },
+        data: {
+          status: 'COMPLETED',
+          updatedAt: new Date()
+        }
+      });
+      console.log(`✅ Expired ${approvedRequests.length} request(s) for file ${fileId}`);
+    }
+
     await logAccess(userId, fileId, 'return', file.rowPosition, file.columnPosition, true);
 
     return {
       success: true,
       fileId: updatedFile.id,
+      requestsExpired: approvedRequests.length,
       message: 'File returned successfully'
     };
   } catch (error) {

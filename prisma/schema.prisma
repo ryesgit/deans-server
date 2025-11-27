@@ -135,6 +135,7 @@ enum RequestStatus {
   APPROVED
   DECLINED
   CANCELLED
+  COMPLETED
 
   @@map("request_status")
 }
