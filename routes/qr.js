@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAvailableFilesForUser, getRetrievedFilesForUser, logAccess, updateFileAccess, checkUserExists, getUserFiles } from '../prismaClient.js';
+import { getAvailableFilesForUser, getRetrievedFilesForUser, logAccess, updateFileAccess, checkUserExists, getUserFiles, returnFile } from '../prismaClient.js';
 import { ESP32Controller } from '../esp32Controller.js';
 import { prisma } from '../prismaClient.js';
 
@@ -56,15 +56,13 @@ router.post('/scan', async (req, res) => {
         const unlockResult = await esp32Controller.unlockDoor(rowPosition, columnPosition);
 
         if (isReturn) {
-          await prisma.file.update({
-            where: { id: file.id },
-            data: { 
-              status: 'AVAILABLE',
-              userId: null // Nullify user ID on return
-            }
-          });
-          await logAccess(userId, file.id, 'return', rowPosition, columnPosition, true);
-          console.log(`📥 File ${filename} returned and set to AVAILABLE`);
+          // Use returnFile function to properly update request status
+          const returnResult = await returnFile(userId, file.id);
+          if (!returnResult.success) {
+            console.error(`Failed to return file ${filename}:`, returnResult.message);
+            // Continue anyway, but log the error
+          }
+          console.log(`📥 File ${filename} returned and set to AVAILABLE. Requests expired: ${returnResult.requestsExpired || 0}`);
         } else {
           await prisma.file.update({
             where: { id: file.id },

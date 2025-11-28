@@ -587,18 +587,19 @@ export const searchFiles = async (query, userId = null) => {
 
 export const returnFile = async (userId, fileId) => {
   try {
+    // First, find the file - check if it belongs to the user
     const file = await prisma.file.findFirst({
       where: {
         id: fileId,
         userId: userId,
-        status: 'RETRIEVED'
+        status: 'RETRIEVED' // Only allow returning files that have been retrieved
       }
     });
 
     if (!file) {
       return {
         success: false,
-        message: 'File not found or not currently retrieved'
+        message: 'File not found or not currently retrieved by this user'
       };
     }
 
