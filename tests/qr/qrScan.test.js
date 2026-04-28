@@ -19,6 +19,7 @@ const mockUpdateFileAccess = jest.fn();
 const mockGetAccessLogs = jest.fn();
 const mockAddFile = jest.fn();
 const mockGetUserFiles = jest.fn();
+const mockReturnFile = jest.fn();
 
 // Mock prismaClient module BEFORE any routes are imported
 jest.unstable_mockModule('../../prismaClient.js', () => ({
@@ -32,6 +33,7 @@ jest.unstable_mockModule('../../prismaClient.js', () => ({
   getAccessLogs: mockGetAccessLogs,
   addFile: mockAddFile,
   getUserFiles: mockGetUserFiles,
+  returnFile: mockReturnFile,
   prisma: {
     $connect: jest.fn(),
     $disconnect: jest.fn(),

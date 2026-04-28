@@ -399,21 +399,24 @@ export const getFileLocation = async (userId, filename = null) => {
 
 export const logAccess = async (userId, fileId, accessType, rowPosition, columnPosition, success = true) => {
   try {
-    // Map access type to transaction type
-    let transactionType;
-    switch (accessType) {
-      case 'scan':
-      case 'retrieve':
-        transactionType = 'RETRIEVAL';
-        break;
-      case 'return':
-        transactionType = 'RETURN';
-        break;
-      case 'checkout':
-        transactionType = 'CHECKOUT';
-        break;
-      default:
-        transactionType = 'RETRIEVAL';
+    const transactionTypeMap = {
+      scan: 'RETRIEVAL',
+      retrieve: 'RETRIEVAL',
+      return: 'RETURN',
+      checkout: 'CHECKOUT',
+      maintenance: 'MAINTENANCE',
+      lost_report: 'LOST_REPORT'
+    };
+
+    const transactionType = transactionTypeMap[accessType];
+
+    // Ignore hardware-only events like auto-lock so they don't pollute business transactions.
+    if (!transactionType) {
+      console.log(`ℹ️ Skipping unsupported access log type: ${accessType}`);
+      return {
+        skipped: true,
+        reason: `Unsupported access type: ${accessType}`
+      };
     }
 
     const transaction = await prisma.transaction.create({

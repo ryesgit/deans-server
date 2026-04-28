@@ -265,6 +265,16 @@ describe('Database Layer - Prisma Client Functions', () => {
       });
     });
 
+    test('should skip unsupported access types like auto_lock', async () => {
+      const result = await logAccess('PUP001', 1, 'auto_lock', 1, 3, true);
+
+      expect(result).toEqual({
+        skipped: true,
+        reason: 'Unsupported access type: auto_lock',
+      });
+      expect(mockPrismaClient.transaction.create).not.toHaveBeenCalled();
+    });
+
     test('should log failed access with correct notes', async () => {
       const mockTransaction = {
         id: 2,
