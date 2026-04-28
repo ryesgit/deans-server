@@ -5,7 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { getUserFiles, getAllFiles, addFile, searchFiles, returnFile, prisma } from '../prismaClient.js';
-import { ESP32Controller } from '../esp32Controller.js';
+import { esp32Controller } from '../esp32Controller.js';
 import { authenticateToken, optionalAuth } from '../middleware/auth.js';
 import { uploadLimiter, readLimiter, apiLimiter } from '../middleware/rateLimiter.js';
 
@@ -97,7 +97,14 @@ router.post('/upload', uploadLimiter, authenticateToken, upload.single('file'), 
       where: { id: result.fileId },
       include: {
         category: {
-          select: { id: true, name: true, description: true }
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            folderNumber: true,
+            rowPosition: true,
+            columnPosition: true
+          }
         },
         user: {
           select: { name: true, department: true, email: true }
@@ -308,16 +315,54 @@ router.patch('/:id', apiLimiter, authenticateToken, async (req, res) => {
 
     const updateData = {};
     if (name || filename) updateData.filename = name || filename;
-    if (categoryId) updateData.categoryId = parseInt(categoryId);
     if (filePath) updateData.filePath = filePath;
 
+    let categoryRecord = null;
+
+    if (categoryId) {
+      categoryRecord = await prisma.category.findUnique({
+        where: { id: parseInt(categoryId) },
+        select: {
+          id: true,
+          name: true,
+          folderNumber: true,
+          rowPosition: true,
+          columnPosition: true
+        }
+      });
+    }
+
     if (category && !categoryId) {
-      const categoryRecord = await prisma.category.findFirst({
-        where: { name: category }
+      categoryRecord = await prisma.category.findFirst({
+        where: { name: category },
+        select: {
+          id: true,
+          name: true,
+          folderNumber: true,
+          rowPosition: true,
+          columnPosition: true
+        }
       });
       if (categoryRecord) {
         updateData.categoryId = categoryRecord.id;
+        updateData.rowPosition = categoryRecord.rowPosition;
+        updateData.columnPosition = categoryRecord.columnPosition;
+        updateData.folderName = categoryRecord.name;
+        updateData.folderNumber = categoryRecord.folderNumber;
       }
+    } else if (categoryRecord) {
+      updateData.categoryId = categoryRecord.id;
+      updateData.rowPosition = categoryRecord.rowPosition;
+      updateData.columnPosition = categoryRecord.columnPosition;
+      updateData.folderName = categoryRecord.name;
+      updateData.folderNumber = categoryRecord.folderNumber;
+    }
+
+    if ((categoryId || category) && !categoryRecord) {
+      return res.status(404).json({
+        error: 'Category not found',
+        message: 'No category found for this file update'
+      });
     }
 
     const updatedFile = await prisma.file.update({
@@ -325,7 +370,14 @@ router.patch('/:id', apiLimiter, authenticateToken, async (req, res) => {
       data: updateData,
       include: {
         category: {
-          select: { id: true, name: true, description: true }
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            folderNumber: true,
+            rowPosition: true,
+            columnPosition: true
+          }
         },
         user: {
           select: { name: true, department: true }
@@ -409,13 +461,12 @@ router.post('/return', async (req, res) => {
       });
     }
 
-    const esp32 = new ESP32Controller();
-    const lockResult = await esp32.lockDoor(rowPosition, columnPosition);
+    const lockResult = await esp32Controller.lockDoor(rowPosition, columnPosition);
 
     res.json({
       message: 'File returned successfully',
       fileId: result.fileId,
-      doorLocked: lockResult.success,
+      doorLocked: lockResult.status === 'success' || lockResult.status === 'simulated',
       lockMessage: lockResult.message
     });
 

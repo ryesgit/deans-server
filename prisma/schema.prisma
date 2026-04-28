@@ -79,6 +79,9 @@ model Category {
   description String?
   color       String?
   icon        String?
+  folderNumber String?  @map("folder_number")
+  rowPosition  Int?     @map("row_position")
+  columnPosition Int?   @map("column_position")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime? @updatedAt @map("updated_at")
   

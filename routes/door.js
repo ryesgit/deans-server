@@ -1,9 +1,8 @@
 import express from "express";
-import { ESP32Controller } from "../esp32Controller.js";
+import { esp32Controller } from "../esp32Controller.js";
 import { logAccess, getAccessLogs } from "../prismaClient.js";
 
 const router = express.Router();
-const esp32Controller = new ESP32Controller();
 
 router.post("/unlock", async (req, res) => {
   const { row, column, userId } = req.body;
@@ -134,6 +133,7 @@ router.post("/esp32/config", (req, res) => {
         port: port,
         url: `http://${ip}:${port}`,
       },
+      note: "HTTP config is retained for compatibility, but realtime control now uses the ESP32 websocket client.",
     });
   } catch (error) {
     res.status(500).json({

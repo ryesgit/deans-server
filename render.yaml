@@ -13,7 +13,5 @@ services:
         value: 10000
       - key: DATABASE_URL
         sync: false
-      - key: ESP32_IP
-        sync: false
-      - key: ESP32_PORT
-        value: 80
+      - key: ESP32_WS_PATH
+        value: /api/esp32/ws

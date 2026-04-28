@@ -1,11 +1,12 @@
 import 'dotenv/config';
+import { createServer } from 'http';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { initializeDatabase } from './prismaClient.js';
-import { ESP32Controller } from './esp32Controller.js';
+import { esp32Controller } from './esp32Controller.js';
 
 // Import routes
 import qrRoutes from './routes/qr.js';
@@ -25,6 +26,7 @@ const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const server = createServer(app);
 
 app.use(helmet());
 app.use(cors({
@@ -37,8 +39,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 await initializeDatabase();
-
-const esp32Controller = new ESP32Controller();
+esp32Controller.attachServer(server);
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -81,7 +82,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 PUP Filing System Backend running on port ${PORT}`);
   console.log(`\n📚 API Endpoints:`);
   console.log(`🔐 Authentication: http://localhost:${PORT}/api/auth/login`);
@@ -95,4 +96,5 @@ app.listen(PORT, () => {
   console.log(`📱 QR Code: http://localhost:${PORT}/api/qr/scan`);
   console.log(`🗂️  Files: http://localhost:${PORT}/api/files`);
   console.log(`🚪 Door control: http://localhost:${PORT}/api/door`);
+  console.log(`🔌 ESP32 websocket: ws://localhost:${PORT}${process.env.ESP32_WS_PATH || '/api/esp32/ws'}`);
 });

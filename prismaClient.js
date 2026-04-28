@@ -501,19 +501,43 @@ export const getAllFiles = async () => {
 
 export const addFile = async (userId, filename, rowPosition, columnPosition, shelfNumber = 1, categoryId = null, fileType = null, fileUrl = null, filePath = null, folderName = null, folderNumber = null, folderContents = null) => {
   try {
+    const parsedCategoryId = categoryId ? parseInt(categoryId, 10) : null;
+    const parsedRowPosition = rowPosition ? parseInt(rowPosition, 10) : null;
+    const parsedColumnPosition = columnPosition ? parseInt(columnPosition, 10) : null;
+    const parsedShelfNumber = shelfNumber ? parseInt(shelfNumber, 10) : 1;
+
+    let category = null;
+
+    if (parsedCategoryId) {
+      category = await prisma.category.findUnique({
+        where: { id: parsedCategoryId },
+        select: {
+          id: true,
+          name: true,
+          folderNumber: true,
+          rowPosition: true,
+          columnPosition: true
+        }
+      });
+
+      if (!category) {
+        throw new Error('Category not found');
+      }
+    }
+
     const file = await prisma.file.create({
       data: {
         userId,
         filename,
-        rowPosition: rowPosition ? parseInt(rowPosition) : null,
-        columnPosition: columnPosition ? parseInt(columnPosition) : null,
-        shelfNumber: shelfNumber ? parseInt(shelfNumber) : 1,
-        categoryId: categoryId ? parseInt(categoryId) : null,
+        rowPosition: category?.rowPosition ?? parsedRowPosition,
+        columnPosition: category?.columnPosition ?? parsedColumnPosition,
+        shelfNumber: parsedShelfNumber,
+        categoryId: parsedCategoryId,
         fileType,
         fileUrl,
         filePath,
-        folderName,
-        folderNumber,
+        folderName: folderName || category?.name || null,
+        folderNumber: folderNumber || category?.folderNumber || null,
         folderContents
       }
     });

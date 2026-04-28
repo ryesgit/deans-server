@@ -1,10 +1,9 @@
 import express from 'express';
 import { getAvailableFilesForUser, getRetrievedFilesForUser, logAccess, updateFileAccess, checkUserExists, getUserFiles, returnFile } from '../prismaClient.js';
-import { ESP32Controller } from '../esp32Controller.js';
+import { esp32Controller } from '../esp32Controller.js';
 import { prisma } from '../prismaClient.js';
 
 const router = express.Router();
-const esp32Controller = new ESP32Controller();
 
 router.post('/scan', async (req, res) => {
   try {

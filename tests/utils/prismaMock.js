@@ -4,6 +4,14 @@
 import { jest } from '@jest/globals';
 
 export const mockPrismaClient = {
+  category: {
+    findUnique: jest.fn(),
+    findMany: jest.fn(),
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    createMany: jest.fn(),
+    update: jest.fn(),
+  },
   user: {
     findUnique: jest.fn(),
     findMany: jest.fn(),
@@ -20,6 +28,7 @@ export const mockPrismaClient = {
     create: jest.fn(),
     createMany: jest.fn(),
     update: jest.fn(),
+    delete: jest.fn(),
   },
   settings: {
     findMany: jest.fn(),

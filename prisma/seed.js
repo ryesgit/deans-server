@@ -141,10 +141,34 @@ async function main() {
 
   const categories = await prisma.category.createMany({
     data: [
-      { name: 'Thesis', description: 'Thesis documents' },
-      { name: 'Capstone', description: 'Capstone projects' },
-      { name: 'Research', description: 'Research papers' },
-      { name: 'Administrative', description: 'Administrative records' }
+      {
+        name: 'Thesis',
+        description: 'Thesis documents',
+        folderNumber: 'THS-001',
+        rowPosition: 1,
+        columnPosition: 3
+      },
+      {
+        name: 'Capstone',
+        description: 'Capstone projects',
+        folderNumber: 'CAP-001',
+        rowPosition: 1,
+        columnPosition: 5
+      },
+      {
+        name: 'Research',
+        description: 'Research papers',
+        folderNumber: 'RES-001',
+        rowPosition: 2,
+        columnPosition: 1
+      },
+      {
+        name: 'Administrative',
+        description: 'Administrative records',
+        folderNumber: 'ADM-001',
+        rowPosition: 2,
+        columnPosition: 5
+      }
     ]
   });
 

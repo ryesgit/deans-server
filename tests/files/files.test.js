@@ -12,6 +12,10 @@ const mockReturnFile = jest.fn();
 
 // Create mock prisma client
 const mockPrismaClient = {
+  category: {
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+  },
   file: {
     findUnique: jest.fn(),
     findFirst: jest.fn(),

@@ -181,6 +181,50 @@ describe('Database Layer - Prisma Client Functions', () => {
           categoryId: null,
           fileType: null,
           fileUrl: null,
+          folderName: null,
+          folderNumber: null,
+          folderContents: null,
+        },
+      });
+    });
+
+    test('should inherit row and column from the category when categoryId is provided', async () => {
+      mockPrismaClient.category.findUnique.mockResolvedValue({
+        id: 7,
+        name: 'Research',
+        folderNumber: 'RES-001',
+        rowPosition: 6,
+        columnPosition: 2,
+      });
+      mockPrismaClient.file.create.mockResolvedValue({ id: 100 });
+
+      const result = await addFile('PUP001', 'Inherited.pdf', 1, 1, 1, 7);
+
+      expect(result).toEqual({ fileId: 100 });
+      expect(mockPrismaClient.category.findUnique).toHaveBeenCalledWith({
+        where: { id: 7 },
+        select: {
+          id: true,
+          name: true,
+          folderNumber: true,
+          rowPosition: true,
+          columnPosition: true,
+        },
+      });
+      expect(mockPrismaClient.file.create).toHaveBeenCalledWith({
+        data: {
+          userId: 'PUP001',
+          filename: 'Inherited.pdf',
+          filePath: null,
+          rowPosition: 6,
+          columnPosition: 2,
+          shelfNumber: 1,
+          categoryId: 7,
+          fileType: null,
+          fileUrl: null,
+          folderName: 'Research',
+          folderNumber: 'RES-001',
+          folderContents: null,
         },
       });
     });
