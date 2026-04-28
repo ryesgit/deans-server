@@ -1,59 +1,47 @@
 import { jest } from '@jest/globals';
 import request from 'supertest';
 import express from 'express';
-import { mockPrismaClient, mockUsers, mockFiles, resetPrismaMocks } from '../utils/prismaMock.js';
+import { mockUsers, mockFiles } from '../utils/prismaMock.js';
 import { mockAxios, mockESP32ConnectionError } from '../utils/axiosMock.js';
 
-// Mock axios
 jest.unstable_mockModule('axios', () => ({
   default: mockAxios,
 }));
 
-// Create mock functions for prismaClient module
 const mockCheckUserExists = jest.fn();
-const mockGetAvailableFilesForUser = jest.fn();
-const mockGetRetrievedFilesForUser = jest.fn();
-const mockGetFileLocation = jest.fn();
 const mockLogAccess = jest.fn();
-const mockUpdateFileAccess = jest.fn();
-const mockGetAccessLogs = jest.fn();
-const mockAddFile = jest.fn();
 const mockGetUserFiles = jest.fn();
 const mockReturnFile = jest.fn();
 
-// Mock prismaClient module BEFORE any routes are imported
+const mockPrisma = {
+  $connect: jest.fn(),
+  $disconnect: jest.fn(),
+  request: {
+    findMany: jest.fn(),
+  },
+  file: {
+    findMany: jest.fn(),
+    update: jest.fn().mockResolvedValue({ id: 1, status: 'RETRIEVED' }),
+  },
+};
+
 jest.unstable_mockModule('../../prismaClient.js', () => ({
   initializeDatabase: jest.fn(),
   checkUserExists: mockCheckUserExists,
-  getAvailableFilesForUser: mockGetAvailableFilesForUser,
-  getRetrievedFilesForUser: mockGetRetrievedFilesForUser,
-  getFileLocation: mockGetFileLocation,
   logAccess: mockLogAccess,
-  updateFileAccess: mockUpdateFileAccess,
-  getAccessLogs: mockGetAccessLogs,
-  addFile: mockAddFile,
   getUserFiles: mockGetUserFiles,
   returnFile: mockReturnFile,
-  prisma: {
-    $connect: jest.fn(),
-    $disconnect: jest.fn(),
-    file: {
-      update: jest.fn().mockResolvedValue({ id: 1, status: 'RETRIEVED' }),
-    },
-  },
+  prisma: mockPrisma,
 }));
 
-// Create test app
 const createTestApp = async () => {
   const app = express();
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  // Import routes after mocking
   const qrRoutes = await import('../../routes/qr.js');
   app.use('/api/qr', qrRoutes.default);
 
-  // Error handler
   app.use((err, req, res, next) => {
     res.status(500).json({
       error: 'Something went wrong!',
@@ -67,40 +55,48 @@ const createTestApp = async () => {
 describe('QR Code Processing - POST /api/qr/scan', () => {
   let app;
   const mockUser = mockUsers[0];
-  const userFiles = mockFiles.filter(f => f.userId === 'PUP001' && f.status === 'AVAILABLE');
-  const mappedUserFiles = userFiles.map(file => ({
-    id: file.id,
-    userId: file.userId,
-    name: mockUser.name,
-    department: mockUser.department,
-    filename: file.filename,
-    rowPosition: file.rowPosition,
-    columnPosition: file.columnPosition,
-    shelfNumber: file.shelfNumber
-  }));
+  const fileOne = {
+    ...mockFiles[0],
+    userId: 'PUP001',
+    status: 'CHECKED_OUT',
+    user: {
+      name: mockUser.name,
+      department: mockUser.department,
+    },
+  };
+  const fileTwo = {
+    ...mockFiles[1],
+    userId: 'PUP001',
+    status: 'CHECKED_OUT',
+    user: {
+      name: mockUser.name,
+      department: mockUser.department,
+    },
+  };
 
   beforeAll(async () => {
-    // Set ESP32 to simulation mode BEFORE creating the app
     mockAxios.get.mockRejectedValue(mockESP32ConnectionError());
     mockAxios.post.mockRejectedValue(mockESP32ConnectionError());
-    
+
     app = await createTestApp();
-    
-    // Give ESP32Controller time to initialize in simulation mode
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise((resolve) => setTimeout(resolve, 200));
   });
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPrisma.file.update.mockResolvedValue({ id: 1, status: 'RETRIEVED' });
+    mockReturnFile.mockResolvedValue({ success: true, fileId: 1, requestsExpired: 1 });
   });
 
   describe('Valid QR Scan Scenarios', () => {
-    test('should process all available files for a valid user', async () => {
+    test('should process only the latest approved file for a valid user', async () => {
       mockCheckUserExists.mockResolvedValue(true);
-      mockGetAvailableFilesForUser.mockResolvedValue(mappedUserFiles);
-      mockGetRetrievedFilesForUser.mockResolvedValue([]);
+      mockPrisma.request.findMany.mockResolvedValue([
+        { id: 102, fileId: fileTwo.id, title: fileTwo.filename, approvedAt: new Date('2026-04-28T10:00:00Z'), createdAt: new Date('2026-04-28T09:00:00Z') },
+        { id: 101, fileId: fileOne.id, title: fileOne.filename, approvedAt: new Date('2026-04-27T10:00:00Z'), createdAt: new Date('2026-04-27T09:00:00Z') },
+      ]);
+      mockPrisma.file.findMany.mockResolvedValue([fileOne, fileTwo]);
       mockLogAccess.mockResolvedValue({ id: 1 });
-      mockUpdateFileAccess.mockResolvedValue({ updated: 1 });
 
       const response = await request(app)
         .post('/api/qr/scan')
@@ -108,42 +104,71 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(response.body.message).toContain('Processed 2 files');
+      expect(response.body.message).toContain('Processed 1 file');
       expect(response.body.user.id).toBe('PUP001');
-      expect(response.body.successfulOperations).toHaveLength(2);
-      expect(response.body.failedOperations).toHaveLength(0);
-      expect(mockLogAccess).toHaveBeenCalled();
+      expect(response.body.successfulOperations).toHaveLength(1);
+      expect(response.body.successfulOperations[0].file.id).toBe(fileTwo.id);
+      expect(response.body.successfulOperations[0].file.row).toBe(fileTwo.rowPosition);
+      expect(response.body.successfulOperations[0].file.column).toBe(fileTwo.columnPosition);
+      expect(mockPrisma.file.update).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.file.update).toHaveBeenCalledWith({
+        where: { id: fileTwo.id },
+        data: { status: 'RETRIEVED' }
+      });
+      expect(mockLogAccess).toHaveBeenCalledTimes(1);
+      expect(mockLogAccess).toHaveBeenCalledWith('PUP001', fileTwo.id, 'retrieve', fileTwo.rowPosition, fileTwo.columnPosition, true);
     });
 
-    test('should trigger ESP32 unlock for each file in simulation mode', async () => {
+    test('should process only the requested file when fileId is provided', async () => {
       mockCheckUserExists.mockResolvedValue(true);
-      mockGetAvailableFilesForUser.mockResolvedValue(mappedUserFiles);
-      mockGetRetrievedFilesForUser.mockResolvedValue([]);
+      mockPrisma.request.findMany.mockResolvedValue([
+        { id: 101, fileId: fileOne.id, title: fileOne.filename, approvedAt: new Date('2026-04-27T10:00:00Z'), createdAt: new Date('2026-04-27T09:00:00Z') },
+      ]);
+      mockPrisma.file.findMany.mockResolvedValue([fileOne]);
       mockLogAccess.mockResolvedValue({ id: 1 });
-      mockUpdateFileAccess.mockResolvedValue({ updated: 1 });
+
+      const response = await request(app)
+        .post('/api/qr/scan')
+        .send({ userId: 'PUP001', fileId: fileOne.id })
+        .expect(200);
+
+      expect(response.body.successfulOperations).toHaveLength(1);
+      expect(response.body.successfulOperations[0].file.id).toBe(fileOne.id);
+      expect(mockPrisma.request.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          userId: 'PUP001',
+          fileId: fileOne.id
+        })
+      }));
+    });
+
+    test('should return only the latest approved retrieved file', async () => {
+      const retrievedFile = {
+        ...fileTwo,
+        status: 'RETRIEVED'
+      };
+
+      mockCheckUserExists.mockResolvedValue(true);
+      mockPrisma.request.findMany.mockResolvedValue([
+        { id: 102, fileId: retrievedFile.id, title: retrievedFile.filename, approvedAt: new Date('2026-04-28T10:00:00Z'), createdAt: new Date('2026-04-28T09:00:00Z') },
+        { id: 101, fileId: fileOne.id, title: fileOne.filename, approvedAt: new Date('2026-04-27T10:00:00Z'), createdAt: new Date('2026-04-27T09:00:00Z') },
+      ]);
+      mockPrisma.file.findMany.mockResolvedValue([
+        { ...fileOne, status: 'RETRIEVED' },
+        retrievedFile
+      ]);
 
       const response = await request(app)
         .post('/api/qr/scan')
         .send({ userId: 'PUP001' })
         .expect(200);
 
-      expect(response.body.successfulOperations.length).toBeGreaterThan(0);
       expect(response.body.success).toBe(true);
-    });
-
-    test('should log access and update file status for each successful unlock', async () => {
-      mockCheckUserExists.mockResolvedValue(true);
-      mockGetAvailableFilesForUser.mockResolvedValue(mappedUserFiles);
-      mockGetRetrievedFilesForUser.mockResolvedValue([]);
-      mockLogAccess.mockResolvedValue({ id: 1 });
-      mockUpdateFileAccess.mockResolvedValue({ updated: 1 });
-
-      await request(app)
-        .post('/api/qr/scan')
-        .send({ userId: 'PUP001' })
-        .expect(200);
-
-      expect(mockLogAccess).toHaveBeenCalled();
+      expect(response.body.successfulOperations).toHaveLength(1);
+      expect(response.body.successfulOperations[0].action).toBe('return');
+      expect(response.body.successfulOperations[0].file.id).toBe(retrievedFile.id);
+      expect(mockReturnFile).toHaveBeenCalledTimes(1);
+      expect(mockReturnFile).toHaveBeenCalledWith('PUP001', retrievedFile.id);
     });
   });
 
@@ -169,10 +194,9 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
       expect(response.body.message).toContain('not registered');
     });
 
-    test('should return 404 when user exists but has no available files', async () => {
+    test('should return 404 when user exists but has no approved actionable files', async () => {
       mockCheckUserExists.mockResolvedValue(true);
-      mockGetAvailableFilesForUser.mockResolvedValue([]);
-      mockGetRetrievedFilesForUser.mockResolvedValue([]);
+      mockPrisma.request.findMany.mockResolvedValue([]);
 
       const response = await request(app)
         .post('/api/qr/scan')
@@ -183,9 +207,9 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
       expect(response.body.message).toContain('No files available');
     });
 
-    test('should return 500 on database error during file fetch', async () => {
+    test('should return 500 on database error during request lookup', async () => {
       mockCheckUserExists.mockResolvedValue(true);
-      mockGetAvailableFilesForUser.mockRejectedValue(new Error('Database error'));
+      mockPrisma.request.findMany.mockRejectedValue(new Error('Database error'));
 
       const response = await request(app)
         .post('/api/qr/scan')

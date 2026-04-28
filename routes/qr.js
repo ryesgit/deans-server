@@ -1,13 +1,83 @@
 import express from 'express';
-import { getAvailableFilesForUser, getRetrievedFilesForUser, logAccess, updateFileAccess, checkUserExists, getUserFiles, returnFile } from '../prismaClient.js';
+import { logAccess, checkUserExists, getUserFiles, returnFile } from '../prismaClient.js';
 import { esp32Controller } from '../esp32Controller.js';
 import { prisma } from '../prismaClient.js';
 
 const router = express.Router();
+const ACTIONABLE_FILE_STATUSES = ['CHECKED_OUT', 'RETRIEVED'];
+
+const getApprovedRequestsForUser = async (userId, targetFileId = null) => {
+  const whereClause = {
+    userId,
+    status: 'APPROVED',
+    fileId: targetFileId ?? { not: null }
+  };
+
+  return prisma.request.findMany({
+    where: whereClause,
+    orderBy: [
+      { approvedAt: 'desc' },
+      { createdAt: 'desc' }
+    ],
+    select: {
+      id: true,
+      fileId: true,
+      title: true,
+      approvedAt: true,
+      createdAt: true
+    }
+  });
+};
+
+const resolveActionableFile = async (userId, requestedFileId = null) => {
+  const normalizedFileId = requestedFileId ? parseInt(requestedFileId, 10) : null;
+  const approvedRequests = await getApprovedRequestsForUser(userId, normalizedFileId);
+
+  if (!approvedRequests.length) {
+    return null;
+  }
+
+  const actionableFileIds = [...new Set(
+    approvedRequests
+      .map((request) => request.fileId)
+      .filter((fileId) => Number.isInteger(fileId))
+  )];
+
+  if (!actionableFileIds.length) {
+    return null;
+  }
+
+  const files = await prisma.file.findMany({
+    where: {
+      id: normalizedFileId ?? { in: actionableFileIds },
+      userId,
+      status: { in: ACTIONABLE_FILE_STATUSES }
+    },
+    include: {
+      user: {
+        select: {
+          name: true,
+          department: true
+        }
+      }
+    }
+  });
+
+  const fileById = new Map(files.map((file) => [file.id, file]));
+
+  for (const request of approvedRequests) {
+    const file = fileById.get(request.fileId);
+    if (file) {
+      return { file, request };
+    }
+  }
+
+  return null;
+};
 
 router.post('/scan', async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { userId, fileId } = req.body;
 
     if (!userId) {
       return res.status(400).json({
@@ -28,12 +98,9 @@ router.post('/scan', async (req, res) => {
       });
     }
 
-    const checkedOutFiles = await getAvailableFilesForUser(userId);
-    const retrievedFiles = await getRetrievedFilesForUser(userId);
+    const actionableFile = await resolveActionableFile(userId, fileId);
 
-    const allFiles = [...checkedOutFiles, ...retrievedFiles];
-
-    if (!allFiles || allFiles.length === 0) {
+    if (!actionableFile) {
       console.log(`❌ Access denied for user: ${userId} - no files to pickup or return`);
       return res.status(404).json({
         error: 'Access denied',
@@ -41,100 +108,110 @@ router.post('/scan', async (req, res) => {
       });
     }
 
-    console.log(`📁 Found ${allFiles.length} files for user ${userId} (${checkedOutFiles.length} to pickup, ${retrievedFiles.length} to return)`);
+    const {
+      file,
+      request
+    } = actionableFile;
+    const {
+      rowPosition,
+      columnPosition,
+      filename,
+      status
+    } = file;
+    const isReturn = status === 'RETRIEVED';
+    const actionType = isReturn ? 'return' : 'pickup';
+    const borrowerName = file.user?.name || 'Unknown';
+    const borrowerDepartment = file.user?.department || 'Unknown';
+
+    console.log(`📁 Matched request ${request.id} to file ${filename} for user ${userId}`);
+    console.log(`Processing file: ${filename} at Row ${rowPosition}, Column ${columnPosition} (${actionType})`);
 
     const results = [];
-    for (const file of allFiles) {
-      const { rowPosition, columnPosition, name, department, filename, status } = file;
-      const isReturn = status === 'RETRIEVED';
-      const actionType = isReturn ? 'return' : 'pickup';
 
-      console.log(`Processing file: ${filename} at Row ${rowPosition}, Column ${columnPosition} (${actionType})`);
+    try {
+      const unlockResult = await esp32Controller.unlockDoor(rowPosition, columnPosition);
 
-      try {
-        const unlockResult = await esp32Controller.unlockDoor(rowPosition, columnPosition);
-
-        if (isReturn) {
-          // Use returnFile function to properly update request status
-          const returnResult = await returnFile(userId, file.id);
-          if (!returnResult.success) {
-            console.error(`Failed to return file ${filename}:`, returnResult.message);
-            // Continue anyway, but log the error
-          }
-          console.log(`📥 File ${filename} returned and set to AVAILABLE. Requests expired: ${returnResult.requestsExpired || 0}`);
-        } else {
-          await prisma.file.update({
-            where: { id: file.id },
-            data: { status: 'RETRIEVED' }
-          });
-          await logAccess(userId, file.id, 'retrieve', rowPosition, columnPosition, true);
-          console.log(`📤 File ${filename} retrieved and set to RETRIEVED`);
+      if (isReturn) {
+        const returnResult = await returnFile(userId, file.id);
+        if (!returnResult.success) {
+          console.error(`Failed to return file ${filename}:`, returnResult.message);
         }
-
-        results.push({
-          success: true,
-          action: actionType,
-          file: {
-            filename,
-            row: rowPosition,
-            column: columnPosition,
-            shelf: file.shelfNumber
-          },
-          esp32Response: unlockResult,
+        console.log(`📥 File ${filename} returned and set to AVAILABLE. Requests expired: ${returnResult.requestsExpired || 0}`);
+      } else {
+        await prisma.file.update({
+          where: { id: file.id },
+          data: { status: 'RETRIEVED' }
         });
-
-        console.log(`⏳ Waiting 3 seconds before auto-lock for Row ${rowPosition}, Column ${columnPosition}...`);
-        setTimeout(async () => {
-          try {
-            console.log(`🔒 Auto-locking Row ${rowPosition}, Column ${columnPosition}`);
-            await esp32Controller.lockDoor(rowPosition, columnPosition);
-            await logAccess(userId, file.id, 'auto_lock', rowPosition, columnPosition, true);
-            console.log(`✅ Auto-lock completed for Row ${rowPosition}, Column ${columnPosition}`);
-          } catch (lockError) {
-            console.error(`❌ Auto-lock failed for Row ${rowPosition}, Column ${columnPosition}:`, lockError.message);
-          }
-        }, 3000);
-
-      } catch (esp32Error) {
-        console.error(`ESP32 communication error for file ${filename}:`, esp32Error);
-
-        await logAccess(userId, file.id, actionType, rowPosition, columnPosition, false);
-
-        results.push({
-          success: false,
-          action: actionType,
-          error: 'Door unlock failed',
-          message: 'ESP32 communication error',
-          file: {
-            filename,
-            row: rowPosition,
-            column: columnPosition,
-            shelf: file.shelfNumber
-          },
-          esp32Error: esp32Error.message,
-        });
+        await logAccess(userId, file.id, 'retrieve', rowPosition, columnPosition, true);
+        console.log(`📤 File ${filename} retrieved and set to RETRIEVED`);
       }
+
+      results.push({
+        success: true,
+        action: actionType,
+        file: {
+          id: file.id,
+          filename,
+          row: rowPosition,
+          column: columnPosition,
+          shelf: file.shelfNumber
+        },
+        requestId: request.id,
+        esp32Response: unlockResult,
+      });
+
+      console.log(`⏳ Waiting 3 seconds before auto-lock for Row ${rowPosition}, Column ${columnPosition}...`);
+      setTimeout(async () => {
+        try {
+          console.log(`🔒 Auto-locking Row ${rowPosition}, Column ${columnPosition}`);
+          await esp32Controller.lockDoor(rowPosition, columnPosition);
+          await logAccess(userId, file.id, 'auto_lock', rowPosition, columnPosition, true);
+          console.log(`✅ Auto-lock completed for Row ${rowPosition}, Column ${columnPosition}`);
+        } catch (lockError) {
+          console.error(`❌ Auto-lock failed for Row ${rowPosition}, Column ${columnPosition}:`, lockError.message);
+        }
+      }, 3000);
+    } catch (esp32Error) {
+      console.error(`ESP32 communication error for file ${filename}:`, esp32Error);
+
+      await logAccess(userId, file.id, actionType, rowPosition, columnPosition, false);
+
+      results.push({
+        success: false,
+        action: actionType,
+        error: 'Door unlock failed',
+        message: 'ESP32 communication error',
+        file: {
+          id: file.id,
+          filename,
+          row: rowPosition,
+          column: columnPosition,
+          shelf: file.shelfNumber
+        },
+        requestId: request.id,
+        esp32Error: esp32Error.message,
+      });
     }
 
     const successfulOperations = results.filter(r => r.success);
     const failedOperations = results.filter(r => !r.success);
-    const pickups = successfulOperations.filter(r => r.action === 'pickup');
-    const returns = successfulOperations.filter(r => r.action === 'return');
+    const pickupCount = successfulOperations.filter(r => r.action === 'pickup').length;
+    const returnCount = successfulOperations.filter(r => r.action === 'return').length;
 
     res.json({
       success: failedOperations.length === 0,
-      message: `Processed ${allFiles.length} files. ${successfulOperations.length} succeeded (${pickups.length} pickups, ${returns.length} returns), ${failedOperations.length} failed.`,
+      message: `Processed 1 file. ${successfulOperations.length} succeeded (${pickupCount} pickup, ${returnCount} return), ${failedOperations.length} failed.`,
       user: {
         id: userId,
-        name: allFiles[0].name,
-        department: allFiles[0].department
+        name: borrowerName,
+        department: borrowerDepartment
       },
       successfulOperations,
       failedOperations,
       summary: {
-        total: allFiles.length,
-        pickups: pickups.length,
-        returns: returns.length,
+        total: 1,
+        pickups: pickupCount,
+        returns: returnCount,
         failed: failedOperations.length
       },
       timestamp: new Date().toISOString()
