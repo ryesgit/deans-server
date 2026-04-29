@@ -5,6 +5,61 @@ import { readLimiter, apiLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
+const FILE_SELECT = {
+  id: true,
+  filename: true,
+  status: true,
+  userId: true,
+  categoryId: true,
+  rowPosition: true,
+  columnPosition: true,
+  shelfNumber: true,
+  folderName: true,
+  folderNumber: true,
+  createdAt: true,
+  updatedAt: true,
+};
+
+const attachFilesToRequests = async (requests) => {
+  const fileIds = [...new Set(
+    requests
+      .map((request) => request.fileId)
+      .filter((fileId) => Number.isInteger(fileId))
+  )];
+
+  if (!fileIds.length) {
+    return requests.map((request) => ({
+      ...request,
+      file: null,
+    }));
+  }
+
+  const files = await prisma.file.findMany({
+    where: {
+      id: { in: fileIds },
+    },
+    select: {
+      ...FILE_SELECT,
+      category: {
+        select: {
+          id: true,
+          name: true,
+          folderNumber: true,
+          rowPosition: true,
+          columnPosition: true,
+        },
+      },
+    },
+  });
+
+  const filesById = new Map(files.map((file) => [file.id, file]));
+
+  return requests.map((request) => ({
+    ...request,
+    file: request.fileId ? filesById.get(request.fileId) ?? null : null,
+  }));
+};
+
 // Get all requests
 router.get('/', readLimiter, authenticateToken, async (req, res) => {
   try {
@@ -47,9 +102,11 @@ router.get('/', readLimiter, authenticateToken, async (req, res) => {
       prisma.request.count({ where: whereClause })
     ]);
 
+    const requestsWithFiles = await attachFilesToRequests(requests);
+
     res.json({
       message: 'Requests retrieved successfully',
-      requests,
+      requests: requestsWithFiles,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -104,9 +161,11 @@ router.get('/:id', readLimiter, authenticateToken, async (req, res) => {
       });
     }
 
+    const [requestWithFile] = await attachFilesToRequests([request]);
+
     res.json({
       message: 'Request retrieved successfully',
-      request
+      request: requestWithFile
     });
 
   } catch (error) {
