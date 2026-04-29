@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import QRCode from 'qrcode';
+import { saveBuffer } from './storage.js';
 
 const prisma = new PrismaClient({
   log: ['query', 'info', 'warn', 'error'],
@@ -29,6 +31,15 @@ const seedDatabase = async () => {
     // Create admin user with password
     const adminPassword = await bcrypt.hash('admin123', 10);
     const defaultPassword = await bcrypt.hash('password123', 10);
+    const seededUserIds = [
+      'ADMIN001',
+      'PUP001',
+      'PUP002',
+      'PUP003',
+      'USER001',
+      'USER002',
+      'USER003',
+    ];
 
     const users = await prisma.user.createMany({
       data: [
@@ -120,11 +131,30 @@ const seedDatabase = async () => {
       skipDuplicates: true
     });
 
+    for (const userId of seededUserIds) {
+      const qrBuffer = await QRCode.toBuffer(userId, {
+        width: 300,
+        margin: 2,
+        errorCorrectionLevel: 'H',
+      });
+
+      await saveBuffer(`qrcodes/${userId}.png`, qrBuffer, {
+        contentType: 'image/png',
+        cacheControl: 'public, max-age=3600',
+      });
+
+      await prisma.user.update({
+        where: { userId },
+        data: { avatar: `/qrcodes/${userId}.png` },
+      });
+    }
+
     const files = await prisma.file.createMany({
       data: [
         {
           userId: 'PUP001',
           filename: 'Engineering_Thesis_2024.pdf',
+          filePath: 'uploads/seed-files/Engineering_Thesis_2024.pdf',
           rowPosition: 1,
           columnPosition: 3,
           shelfNumber: 1,
@@ -135,6 +165,7 @@ const seedDatabase = async () => {
         {
           userId: 'PUP001',
           filename: 'Project_Documentation.pdf',
+          filePath: 'uploads/seed-files/Project_Documentation.pdf',
           rowPosition: 2,
           columnPosition: 1,
           shelfNumber: 1,
@@ -145,6 +176,7 @@ const seedDatabase = async () => {
         {
           userId: 'PUP002',
           filename: 'Business_Plan_Final.pdf',
+          filePath: 'uploads/seed-files/Business_Plan_Final.pdf',
           rowPosition: 1,
           columnPosition: 5,
           shelfNumber: 1,
@@ -155,6 +187,7 @@ const seedDatabase = async () => {
         {
           userId: 'PUP002',
           filename: 'Marketing_Research.pdf',
+          filePath: 'uploads/seed-files/Marketing_Research.pdf',
           rowPosition: 3,
           columnPosition: 2,
           shelfNumber: 1,
@@ -165,6 +198,7 @@ const seedDatabase = async () => {
         {
           userId: 'PUP003',
           filename: 'Capstone_Project.pdf',
+          filePath: 'uploads/seed-files/Capstone_Project.pdf',
           rowPosition: 2,
           columnPosition: 4,
           shelfNumber: 1,
@@ -175,6 +209,7 @@ const seedDatabase = async () => {
         {
           userId: 'PUP003',
           filename: 'Algorithm_Analysis.pdf',
+          filePath: 'uploads/seed-files/Algorithm_Analysis.pdf',
           rowPosition: 1,
           columnPosition: 1,
           shelfNumber: 1,
@@ -185,6 +220,7 @@ const seedDatabase = async () => {
         {
           userId: 'USER001',
           filename: 'John_Thesis_2024.pdf',
+          filePath: 'uploads/seed-files/John_Thesis_2024.pdf',
           rowPosition: 2,
           columnPosition: 2,
           shelfNumber: 1,
@@ -195,6 +231,7 @@ const seedDatabase = async () => {
         {
           userId: 'USER003',
           filename: 'Bob_Project_Report.pdf',
+          filePath: 'uploads/seed-files/Bob_Project_Report.pdf',
           rowPosition: 1,
           columnPosition: 4,
           shelfNumber: 1,
@@ -205,6 +242,7 @@ const seedDatabase = async () => {
         {
           userId: 'USER003',
           filename: 'Bob_Research_Paper.pdf',
+          filePath: 'uploads/seed-files/Bob_Research_Paper.pdf',
           rowPosition: 3,
           columnPosition: 1,
           shelfNumber: 1,
@@ -215,6 +253,7 @@ const seedDatabase = async () => {
         {
           userId: 'ADMIN001',
           filename: 'Administrative_Records.pdf',
+          filePath: 'uploads/seed-files/Administrative_Records.pdf',
           rowPosition: 2,
           columnPosition: 5,
           shelfNumber: 1,
@@ -225,6 +264,36 @@ const seedDatabase = async () => {
       ],
       skipDuplicates: true
     });
+
+    const seededFiles = await prisma.file.findMany({
+      where: {
+        filename: {
+          in: [
+            'Engineering_Thesis_2024.pdf',
+            'Project_Documentation.pdf',
+            'Business_Plan_Final.pdf',
+            'Marketing_Research.pdf',
+            'Capstone_Project.pdf',
+            'Algorithm_Analysis.pdf',
+            'John_Thesis_2024.pdf',
+            'Bob_Project_Report.pdf',
+            'Bob_Research_Paper.pdf',
+            'Administrative_Records.pdf',
+          ],
+        },
+      },
+      select: { id: true, filename: true, filePath: true },
+    });
+
+    for (const file of seededFiles) {
+      await prisma.file.update({
+        where: { id: file.id },
+        data: {
+          filePath: file.filePath || `uploads/seed-files/${file.filename}`,
+          fileUrl: `/api/files/download/${file.id}`,
+        },
+      });
+    }
 
     console.log(`👥 Created ${users.count} users`);
     console.log(`📁 Created ${files.count} files`);

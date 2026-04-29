@@ -1,24 +1,19 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import QRCode from 'qrcode';
-import { promises as fs } from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { saveBuffer } from '../storage.js';
 
 const prisma = new PrismaClient();
 
 async function generateUserQRCode(userId) {
-  const qrDir = path.join(__dirname, '..', 'uploads', 'qrcodes');
-  await fs.mkdir(qrDir, { recursive: true });
-
-  const qrPath = path.join(qrDir, `${userId}.png`);
-  await QRCode.toFile(qrPath, userId, {
+  const qrBuffer = await QRCode.toBuffer(userId, {
     width: 300,
     margin: 2,
     errorCorrectionLevel: 'H'
+  });
+  await saveBuffer(`qrcodes/${userId}.png`, qrBuffer, {
+    contentType: 'image/png',
+    cacheControl: 'public, max-age=3600',
   });
 
   return `/qrcodes/${userId}.png`;

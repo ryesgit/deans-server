@@ -1,27 +1,22 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import QRCode from 'qrcode';
-import { promises as fs } from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { prisma } from '../prismaClient.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
 import { readLimiter, userOperationsLimiter } from '../middleware/rateLimiter.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { saveBuffer } from '../storage.js';
 
 const router = express.Router();
 
 async function generateUserQRCode(userId) {
-  const qrDir = path.join(__dirname, '..', 'uploads', 'qrcodes');
-  await fs.mkdir(qrDir, { recursive: true });
-
-  const qrPath = path.join(qrDir, `${userId}.png`);
-  await QRCode.toFile(qrPath, userId, {
+  const qrBuffer = await QRCode.toBuffer(userId, {
     width: 300,
     margin: 2,
     errorCorrectionLevel: 'H'
+  });
+  await saveBuffer(`qrcodes/${userId}.png`, qrBuffer, {
+    contentType: 'image/png',
+    cacheControl: 'public, max-age=3600',
   });
 
   return `/qrcodes/${userId}.png`;

@@ -17,6 +17,7 @@ env:
   SERVICE_ACCOUNT: github-actions-deployer@deans-filing-system.iam.gserviceaccount.com
   RUNTIME_SERVICE_ACCOUNT: deans-server-runtime@deans-filing-system.iam.gserviceaccount.com
   INSTANCE_CONNECTION_NAME: deans-filing-system:asia-northeast1:deans-server-postgres
+  BUCKET_NAME: deans-filing-system-assets-463695708385
   SERVICE_NAME: deans-server
 
 jobs:
@@ -45,12 +46,35 @@ jobs:
               --repository-format docker
           fi
 
-      - name: Build backend image
+      - name: Configure Docker auth for Artifact Registry
+        run: |
+          set -euo pipefail
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Ensure Cloud Storage bucket exists
+        run: |
+          set -euo pipefail
+          if ! gcloud storage buckets describe "gs://${BUCKET_NAME}" >/dev/null 2>&1; then
+            gcloud storage buckets create "gs://${BUCKET_NAME}" \
+              --project "$PROJECT_ID" \
+              --location "$REGION" \
+              --uniform-bucket-level-access
+          fi
+
+      - name: Sync seed files to Cloud Storage
+        run: |
+          set -euo pipefail
+          if [ -d uploads/seed-files ]; then
+            gcloud storage cp --recursive uploads/seed-files/* "gs://${BUCKET_NAME}/seed-files/"
+          fi
+
+      - name: Build and push backend image
         env:
           IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/cloud-run/${{ env.SERVICE_NAME }}:${{ github.sha }}
         run: |
           set -euo pipefail
-          gcloud builds submit --project "$PROJECT_ID" --tag "$IMAGE"
+          docker build --tag "$IMAGE" .
+          docker push "$IMAGE"
 
       - name: Deploy backend service
         env:
@@ -65,6 +89,6 @@ jobs:
             --add-cloudsql-instances "$INSTANCE_CONNECTION_NAME" \
             --allow-unauthenticated \
             --timeout 3600 \
-            --set-env-vars "NODE_ENV=production,ESP32_WS_PATH=/api/esp32/ws" \
+            --set-env-vars "NODE_ENV=production,ESP32_WS_PATH=/api/esp32/ws,GCS_BUCKET=${BUCKET_NAME}" \
             --set-secrets "DATABASE_URL=deans-server-database-url:latest,JWT_SECRET=deans-server-jwt-secret:latest" \
             --quiet

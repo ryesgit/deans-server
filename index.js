@@ -20,6 +20,7 @@ import requestRoutes from './routes/requests.js';
 import notificationRoutes from './routes/notifications.js';
 import settingsRoutes from './routes/settings.js';
 import reportsRoutes from './routes/reports.js';
+import { streamObject } from './storage.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -54,17 +55,57 @@ app.use('/api/qr', qrRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/door', doorRoutes);
 
-app.use('/seed-files', (req, res, next) => {
-  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  next();
-}, express.static(join(__dirname, 'uploads/seed-files')));
+app.get('/seed-files/:filename', async (req, res) => {
+  try {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
 
-app.use('/qrcodes', (req, res, next) => {
-  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  next();
-}, express.static(join(__dirname, 'uploads/qrcodes')));
+    const streamed = await streamObject(`seed-files/${req.params.filename}`, res, {
+      downloadName: req.params.filename,
+      inline: true,
+    });
+    if (!streamed && !res.headersSent) {
+      res.status(404).json({
+        error: 'File not found',
+        message: 'Seed file not found in storage',
+      });
+    }
+  } catch (error) {
+    console.error('Seed file stream error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Failed to load seed file',
+        message: error.message,
+      });
+    }
+  }
+});
+
+app.get('/qrcodes/:filename', async (req, res) => {
+  try {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    const streamed = await streamObject(`qrcodes/${req.params.filename}`, res, {
+      downloadName: req.params.filename,
+      inline: true,
+    });
+    if (!streamed && !res.headersSent) {
+      res.status(404).json({
+        error: 'QR code not found',
+        message: 'QR code not found in storage',
+      });
+    }
+  } catch (error) {
+    console.error('QR code stream error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Failed to load QR code',
+        message: error.message,
+      });
+    }
+  }
+});
 
 app.get('/api/health', (req, res) => {
   res.json({

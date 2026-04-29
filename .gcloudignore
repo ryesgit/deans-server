@@ -12,3 +12,4 @@ __pycache__
 backups
 .env
 .env.*
+uploads

@@ -1,33 +1,13 @@
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 import { getUserFiles, getAllFiles, addFile, searchFiles, returnFile, prisma } from '../prismaClient.js';
 import { esp32Controller } from '../esp32Controller.js';
 import { authenticateToken, optionalAuth } from '../middleware/auth.js';
 import { uploadLimiter, readLimiter, apiLimiter } from '../middleware/rateLimiter.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { deleteObject, getObjectPathFromStoredPath, saveBuffer, streamObject } from '../storage.js';
 
 const router = express.Router();
-
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = process.env.UPLOAD_DIR || './uploads';
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
 
 const fileFilter = (req, file, cb) => {
   const allowedTypes = ['.pdf', '.doc', '.docx', '.txt', '.jpg', '.jpeg', '.png'];
@@ -41,7 +21,7 @@ const fileFilter = (req, file, cb) => {
 };
 
 const upload = multer({
-  storage: storage,
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024 // 10MB default
   },
@@ -50,6 +30,8 @@ const upload = multer({
 
 // Upload file endpoint
 router.post('/upload', uploadLimiter, authenticateToken, upload.single('file'), async (req, res) => {
+  let objectPath = null;
+
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -73,10 +55,14 @@ router.post('/upload', uploadLimiter, authenticateToken, upload.single('file'), 
 
     // Use authenticated user's ID if not admin
     const targetUserId = req.user.role === 'ADMIN' && userId ? userId : req.user.userId;
-
-    const fileUrl = `/api/files/download/${req.file.filename}`;
+    const storedFilename = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(req.file.originalname)}`;
+    objectPath = storedFilename;
     const finalFilename = filename || req.file.originalname;
-    const finalFileType = fileType || path.extname(req.file.originalname).substring(1);
+    const finalFileType = fileType || req.file.mimetype || path.extname(req.file.originalname).substring(1);
+
+    await saveBuffer(objectPath, req.file.buffer, {
+      contentType: req.file.mimetype,
+    });
 
     const result = await addFile(
       targetUserId,
@@ -86,12 +72,19 @@ router.post('/upload', uploadLimiter, authenticateToken, upload.single('file'), 
       shelfNumber,
       categoryId,
       finalFileType,
-      fileUrl,
-      req.file.path,
+      null,
+      `uploads/${storedFilename}`,
       folderName,
       folderNumber,
       folderContents
     );
+
+    await prisma.file.update({
+      where: { id: result.fileId },
+      data: {
+        fileUrl: `/api/files/download/${result.fileId}`,
+      },
+    });
 
     const uploadedFile = await prisma.file.findUnique({
       where: { id: result.fileId },
@@ -123,10 +116,9 @@ router.post('/upload', uploadLimiter, authenticateToken, upload.single('file'), 
 
   } catch (error) {
     console.error('File upload error:', error);
-    
-    // Clean up uploaded file if database insert failed
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
+
+    if (objectPath) {
+      await deleteObject(objectPath).catch(() => {});
     }
 
     res.status(500).json({
@@ -140,41 +132,39 @@ router.post('/upload', uploadLimiter, authenticateToken, upload.single('file'), 
 router.get('/download/:id', readLimiter, async (req, res) => {
   try {
     const { id } = req.params;
-    console.log(`Download request for file ID: ${id}`);
+    const numericId = Number.parseInt(id, 10);
 
-    const file = await prisma.file.findUnique({
-      where: { id: parseInt(id) }
-    });
-    console.log('File from DB:', file);
+    const file = Number.isInteger(numericId) && String(numericId) === id
+      ? await prisma.file.findUnique({ where: { id: numericId } })
+      : await prisma.file.findFirst({
+        where: {
+          OR: [
+            { fileUrl: { endsWith: `/${id}` } },
+            { filePath: { endsWith: `/${id}` } },
+            { filePath: { equals: `uploads/${id}` } },
+          ],
+        },
+      });
 
-    if (!file || !file.filePath) {
+    if (!file) {
       return res.status(404).json({
         error: 'File not found',
-        message: 'The requested file does not exist or has no physical file.'
+        message: 'The requested file does not exist.'
       });
     }
 
-    const filePath = path.resolve(file.filePath);
-    console.log(`Resolved file path: ${filePath}`);
-
-    if (!fs.existsSync(filePath)) {
+    const objectPath = file.filePath
+      ? getObjectPathFromStoredPath(file.filePath)
+      : `seed-files/${file.filename}`;
+    const streamed = await streamObject(objectPath, res, {
+      downloadName: file.filename,
+    });
+    if (!streamed) {
       return res.status(404).json({
         error: 'File not found',
-        message: 'The file does not exist on the server.'
+        message: 'The file does not exist in storage.'
       });
     }
-
-    res.download(filePath, file.filename, (err) => {
-      if (err) {
-        console.error('File download error:', err);
-        if (!res.headersSent) {
-          res.status(500).json({
-            error: 'Failed to download file',
-            message: err.message
-          });
-        }
-      }
-    });
 
   } catch (error) {
     console.error('File download error:', error);
@@ -418,14 +408,9 @@ router.delete('/:id', apiLimiter, authenticateToken, async (req, res) => {
       where: { id: parseInt(id) }
     });
 
-    if (file.fileUrl) {
-      const filename = path.basename(file.fileUrl);
-      const uploadDir = process.env.UPLOAD_DIR || './uploads';
-      const filePath = path.join(uploadDir, filename);
-
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
+    const objectPath = getObjectPathFromStoredPath(file.filePath);
+    if (objectPath) {
+      await deleteObject(objectPath);
     }
 
     res.json({
