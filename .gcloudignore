@@ -1,0 +1,14 @@
+.gcloudignore
+.git
+.github
+.gitignore
+node_modules
+.jest-cache
+coverage
+test-results.json
+test-reports
+tests
+__pycache__
+backups
+.env
+.env.*

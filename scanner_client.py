@@ -4,17 +4,19 @@ import json
 import os
 import sys
 from typing import Iterable, Optional
+from urllib.parse import urlparse
 
 import evdev
 import requests
 
-DEFAULT_SERVER_URL = "http://localhost:3001/api/qr/scan"
+DEFAULT_SERVER_URL = "https://deans-server-x4daosqtwq-an.a.run.app/api/qr/scan"
 SCANNER_DEVICE_ENV = "SCANNER_DEVICE"
 SCANNER_NAME_HINT_ENV = "SCANNER_NAME_HINT"
 SERVER_URL_ENV = "SCANNER_SERVER_URL"
 
 DEVICE_NAME_HINTS = (
     "scanner",
+    "scancode",
     "barcode",
     "qr",
     "honeywell",
@@ -79,8 +81,26 @@ KEY_MAPPINGS = {
 }
 
 
+def normalize_server_url(raw_url: str) -> str:
+    cleaned_url = raw_url.strip().rstrip("/")
+    if not cleaned_url:
+        return DEFAULT_SERVER_URL
+
+    parsed = urlparse(cleaned_url)
+    if not parsed.scheme or not parsed.netloc:
+        raise ValueError(
+            f"Invalid scanner server URL: {raw_url!r}. "
+            "Use a full URL such as https://deans-server-x4daosqtwq-an.a.run.app/api/qr/scan"
+        )
+
+    if parsed.path.endswith("/api/qr/scan"):
+        return cleaned_url
+
+    return f"{cleaned_url}/api/qr/scan"
+
+
 def get_server_url() -> str:
-    return os.getenv(SERVER_URL_ENV, DEFAULT_SERVER_URL)
+    return normalize_server_url(os.getenv(SERVER_URL_ENV, DEFAULT_SERVER_URL))
 
 
 def iter_input_devices() -> Iterable[evdev.InputDevice]:

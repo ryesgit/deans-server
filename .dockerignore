@@ -1,0 +1,17 @@
+.git
+.github
+.env
+.env.*
+node_modules
+npm-debug.log*
+pnpm-debug.log*
+.jest-cache
+coverage
+full-test.log
+full-test2.log
+full-test3.log
+test-results.json
+test-reports
+tests
+__pycache__
+backups
