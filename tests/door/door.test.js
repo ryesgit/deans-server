@@ -39,13 +39,13 @@ describe('Door Control Endpoints', () => {
   let app;
 
   beforeAll(async () => {
-    // Set ESP32 to simulation mode BEFORE creating the app
+    // Leave ESP32 disconnected before creating the app.
     mockAxios.get.mockRejectedValue(mockESP32ConnectionError());
     mockAxios.post.mockRejectedValue(mockESP32ConnectionError());
     
     app = await createTestApp();
     
-    // Give ESP32Controller time to initialize in simulation mode
+    // Give ESP32Controller time to initialize.
     await new Promise(resolve => setTimeout(resolve, 200));
   });
 
@@ -54,18 +54,17 @@ describe('Door Control Endpoints', () => {
   });
 
   describe('POST /api/door/unlock', () => {
-    test('should unlock door manually', async () => {
+    test('should fail manual unlock when ESP32 is disconnected', async () => {
       const response = await request(app)
         .post('/api/door/unlock')
         .send({ row: 1, column: 3 })
-        .expect(200);
+        .expect(500);
 
-      expect(response.body.success).toBe(true);
-      expect(response.body.message).toContain('Door unlocked successfully');
-      expect(response.body.timestamp).toBeDefined();
+      expect(response.body.error).toBe('Unlock failed');
+      expect(response.body.message).toBe('ESP32 websocket is not connected; cannot unlock door');
     });
 
-    test('should log access when userId provided', async () => {
+    test('should fail manual unlock with userId when ESP32 is disconnected', async () => {
       const response = await request(app)
         .post('/api/door/unlock')
         .send({
@@ -73,9 +72,10 @@ describe('Door Control Endpoints', () => {
           column: 3,
           userId: 'PUP001',
         })
-        .expect(200);
+        .expect(500);
 
-      expect(response.body.success).toBe(true);
+      expect(response.body.error).toBe('Unlock failed');
+      expect(response.body.message).toBe('ESP32 websocket is not connected; cannot unlock door');
     });
 
     test('should handle missing row coordinate', async () => {
@@ -100,20 +100,17 @@ describe('Door Control Endpoints', () => {
   });
 
   describe('POST /api/door/lock', () => {
-    test('should lock door manually in simulation mode', async () => {
+    test('should fail manual lock when ESP32 is disconnected', async () => {
       const response = await request(app)
         .post('/api/door/lock')
         .send({ row: 1, column: 3 })
-        .expect(200);
+        .expect(500);
 
-      expect(response.body.success).toBe(true);
-      expect(response.body.message).toBe('Door locked successfully');
-      expect(response.body.result.status).toBe('simulated');
-      expect(response.body.result.row).toBe(1);
-      expect(response.body.result.column).toBe(3);
+      expect(response.body.error).toBe('Lock failed');
+      expect(response.body.message).toBe('ESP32 websocket is not connected; cannot lock door');
     });
 
-    test('should log access when userId is provided', async () => {
+    test('should fail manual lock with userId when ESP32 is disconnected', async () => {
       const response = await request(app)
         .post('/api/door/lock')
         .send({
@@ -121,10 +118,10 @@ describe('Door Control Endpoints', () => {
           column: 3,
           userId: 'PUP001',
         })
-        .expect(200);
+        .expect(500);
 
-      expect(response.body.success).toBe(true);
-      expect(response.body.message).toBe('Door locked successfully');
+      expect(response.body.error).toBe('Lock failed');
+      expect(response.body.message).toBe('ESP32 websocket is not connected; cannot lock door');
     });
 
     test('should return 400 when required parameters are missing', async () => {
@@ -138,13 +135,13 @@ describe('Door Control Endpoints', () => {
   });
 
   describe('GET /api/door/status', () => {
-    test('should return status in simulation mode', async () => {
+    test('should return disconnected status', async () => {
       const response = await request(app)
         .get('/api/door/status')
         .expect(200);
 
       expect(response.body.esp32.status).toBe('disconnected');
-      expect(response.body.esp32.simulation).toBe(true);
+      expect(response.body.esp32.simulation).toBeUndefined();
       expect(response.body.server.status).toBe('running');
       expect(response.body.server.timestamp).toBeDefined();
     });

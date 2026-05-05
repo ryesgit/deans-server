@@ -2,16 +2,13 @@ import { jest } from '@jest/globals';
 import request from 'supertest';
 import express from 'express';
 import { mockUsers, mockFiles } from '../utils/prismaMock.js';
-import { mockAxios, mockESP32ConnectionError } from '../utils/axiosMock.js';
-
-jest.unstable_mockModule('axios', () => ({
-  default: mockAxios,
-}));
 
 const mockCheckUserExists = jest.fn();
 const mockLogAccess = jest.fn();
 const mockGetUserFiles = jest.fn();
 const mockReturnFile = jest.fn();
+const mockUnlockDoor = jest.fn();
+const mockLockDoor = jest.fn();
 
 const mockPrisma = {
   $connect: jest.fn(),
@@ -34,6 +31,15 @@ jest.unstable_mockModule('../../prismaClient.js', () => ({
   prisma: mockPrisma,
 }));
 
+jest.unstable_mockModule('../../esp32Controller.js', () => ({
+  esp32Controller: {
+    unlockDoor: mockUnlockDoor,
+    lockDoor: mockLockDoor,
+    isConnected: jest.fn(() => true),
+    getStatus: jest.fn(),
+  },
+}));
+
 const createTestApp = async () => {
   const app = express();
   app.use(express.json());
@@ -54,6 +60,8 @@ const createTestApp = async () => {
 
 describe('QR Code Processing - POST /api/qr/scan', () => {
   let app;
+  let originalSetTimeout;
+  let setTimeoutSpy;
   const mockUser = mockUsers[0];
   const fileOne = {
     ...mockFiles[0],
@@ -75,17 +83,38 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
   };
 
   beforeAll(async () => {
-    mockAxios.get.mockRejectedValue(mockESP32ConnectionError());
-    mockAxios.post.mockRejectedValue(mockESP32ConnectionError());
+    originalSetTimeout = global.setTimeout;
+    setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementation((callback, timeout, ...args) => {
+      if (timeout === 3000) {
+        return { unref: jest.fn() };
+      }
+
+      return originalSetTimeout(callback, timeout, ...args);
+    });
 
     app = await createTestApp();
-    await new Promise((resolve) => setTimeout(resolve, 200));
+  });
+
+  afterAll(() => {
+    setTimeoutSpy.mockRestore();
   });
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockPrisma.file.update.mockResolvedValue({ id: 1, status: 'RETRIEVED' });
     mockReturnFile.mockResolvedValue({ success: true, fileId: 1, requestsExpired: 1 });
+    mockUnlockDoor.mockResolvedValue({
+      status: 'success',
+      message: 'Door unlocked successfully',
+      row: 1,
+      column: 1,
+      timestamp: new Date('2026-05-05T00:00:00Z').toISOString(),
+      duration: '10ms',
+    });
+    mockLockDoor.mockResolvedValue({
+      status: 'success',
+      message: 'Door locked successfully',
+    });
   });
 
   describe('Valid QR Scan Scenarios', () => {
@@ -110,6 +139,8 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
       expect(response.body.successfulOperations[0].file.id).toBe(fileTwo.id);
       expect(response.body.successfulOperations[0].file.row).toBe(fileTwo.rowPosition);
       expect(response.body.successfulOperations[0].file.column).toBe(fileTwo.columnPosition);
+      expect(response.body.successfulOperations[0].esp32Response.status).toBe('success');
+      expect(mockUnlockDoor).toHaveBeenCalledWith(fileTwo.rowPosition, fileTwo.columnPosition);
       expect(mockPrisma.file.update).toHaveBeenCalledTimes(1);
       expect(mockPrisma.file.update).toHaveBeenCalledWith({
         where: { id: fileTwo.id },
@@ -134,6 +165,7 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
 
       expect(response.body.successfulOperations).toHaveLength(1);
       expect(response.body.successfulOperations[0].file.id).toBe(fileOne.id);
+      expect(response.body.successfulOperations[0].esp32Response.status).toBe('success');
       expect(mockPrisma.request.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({
           userId: 'PUP001',
@@ -167,8 +199,31 @@ describe('QR Code Processing - POST /api/qr/scan', () => {
       expect(response.body.successfulOperations).toHaveLength(1);
       expect(response.body.successfulOperations[0].action).toBe('return');
       expect(response.body.successfulOperations[0].file.id).toBe(retrievedFile.id);
+      expect(response.body.successfulOperations[0].esp32Response.status).toBe('success');
       expect(mockReturnFile).toHaveBeenCalledTimes(1);
       expect(mockReturnFile).toHaveBeenCalledWith('PUP001', retrievedFile.id);
+    });
+
+    test('should fail the operation when ESP32 does not unlock', async () => {
+      mockCheckUserExists.mockResolvedValue(true);
+      mockPrisma.request.findMany.mockResolvedValue([
+        { id: 101, fileId: fileOne.id, title: fileOne.filename, approvedAt: new Date('2026-04-27T10:00:00Z'), createdAt: new Date('2026-04-27T09:00:00Z') },
+      ]);
+      mockPrisma.file.findMany.mockResolvedValue([fileOne]);
+      mockUnlockDoor.mockRejectedValue(new Error('ESP32 websocket is not connected; cannot unlock door'));
+
+      const response = await request(app)
+        .post('/api/qr/scan')
+        .send({ userId: 'PUP001', fileId: fileOne.id })
+        .expect(200);
+
+      expect(response.body.success).toBe(false);
+      expect(response.body.successfulOperations).toHaveLength(0);
+      expect(response.body.failedOperations).toHaveLength(1);
+      expect(response.body.failedOperations[0].error).toBe('Door unlock failed');
+      expect(response.body.failedOperations[0].esp32Error).toBe('ESP32 websocket is not connected; cannot unlock door');
+      expect(mockPrisma.file.update).not.toHaveBeenCalled();
+      expect(mockLogAccess).toHaveBeenCalledWith('PUP001', fileOne.id, 'pickup', fileOne.rowPosition, fileOne.columnPosition, false);
     });
   });
 

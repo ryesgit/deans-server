@@ -451,7 +451,7 @@ router.post('/return', async (req, res) => {
     res.json({
       message: 'File returned successfully',
       fileId: result.fileId,
-      doorLocked: lockResult.status === 'success' || lockResult.status === 'simulated',
+      doorLocked: lockResult.status === 'success',
       lockMessage: lockResult.message
     });
 

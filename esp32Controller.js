@@ -3,8 +3,6 @@ import { createHash, randomUUID } from 'crypto';
 const DEFAULT_WS_PATH = process.env.ESP32_WS_PATH || '/api/esp32/ws';
 const DEFAULT_COMMAND_TIMEOUT_MS = parseInt(process.env.ESP32_COMMAND_TIMEOUT_MS || '5000', 10);
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 export class ESP32Controller {
   constructor() {
     this.connected = false;
@@ -294,27 +292,18 @@ export class ESP32Controller {
   }
 
   async unlockDoor(row, column) {
-    return this.sendCommand('unlock', row, column, 1000);
+    return this.sendCommand('unlock', row, column);
   }
 
   async lockDoor(row, column) {
-    return this.sendCommand('lock', row, column, 500);
+    return this.sendCommand('lock', row, column);
   }
 
-  async sendCommand(action, row, column, simulationDelayMs) {
+  async sendCommand(action, row, column) {
     console.log(`${action === 'unlock' ? '🚪' : '🔒'} Attempting to ${action} door at Row ${row}, Column ${column}`);
 
     if (!this.connected) {
-      console.log('📡 ESP32 websocket not connected, using simulation mode');
-      await sleep(simulationDelayMs);
-      return {
-        status: 'simulated',
-        message: `Simulated ${action} for Row ${row}, Column ${column}`,
-        row,
-        column,
-        timestamp: new Date().toISOString(),
-        duration: `${simulationDelayMs}ms`,
-      };
+      throw new Error(`ESP32 websocket is not connected; cannot ${action} door`);
     }
 
     const requestId = randomUUID();
@@ -365,7 +354,6 @@ export class ESP32Controller {
       return {
         status: 'disconnected',
         message: 'ESP32 not connected',
-        simulation: true,
         websocketPath: this.websocketPath,
         lastSeenAt: this.lastSeenAt,
       };
